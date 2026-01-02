@@ -6,6 +6,8 @@
 
 import { api } from '../api.js';
 import { showToast } from './toast.js';
+import { initAutocomplete, renderBeadItem, renderAgentItem } from './autocomplete.js';
+import { state } from '../state.js';
 
 // Modal registry
 const modals = new Map();
@@ -88,6 +90,17 @@ export function initModals() {
 
   document.addEventListener('mail:detail', (e) => {
     showMailDetailModal(e.detail.mailId, e.detail.mail);
+  });
+
+  document.addEventListener('convoy:escalate', (e) => {
+    showEscalationModal(e.detail.convoyId, e.detail.convoyName);
+  });
+
+  document.addEventListener('mail:reply', (e) => {
+    openModal('mail-compose', {
+      replyTo: e.detail.mail.from,
+      subject: e.detail.mail.subject,
+    });
   });
 }
 
@@ -192,6 +205,9 @@ async function handleNewConvoySubmit(form) {
 
 // === Sling Modal ===
 
+// Track autocomplete instances for cleanup
+let beadAutocomplete = null;
+
 function initSlingModal(element, data) {
   // Pre-fill if data provided
   if (data.bead) {
@@ -201,6 +217,144 @@ function initSlingModal(element, data) {
   if (data.target) {
     const targetInput = element.querySelector('[name="target"]');
     if (targetInput) targetInput.value = data.target;
+  }
+
+  // Initialize bead autocomplete
+  const beadInput = element.querySelector('[name="bead"]');
+  if (beadInput && !beadAutocomplete) {
+    beadAutocomplete = initAutocomplete(beadInput, {
+      search: async (query) => {
+        // Search both beads and formulas
+        try {
+          const [beads, formulas] = await Promise.all([
+            api.searchBeads(query).catch(() => []),
+            api.searchFormulas(query).catch(() => []),
+          ]);
+
+          // Combine and dedupe results
+          const results = [
+            ...beads.map(b => ({ ...b, type: 'bead' })),
+            ...formulas.map(f => ({ ...f, type: 'formula', id: f.name })),
+          ];
+
+          return results;
+        } catch {
+          // Fallback: provide local suggestions from convoys
+          const convoys = state.get('convoys') || [];
+          const beadMatches = [];
+          convoys.forEach(convoy => {
+            if (convoy.issues) {
+              convoy.issues.forEach(issue => {
+                const id = typeof issue === 'string' ? issue : issue.id;
+                if (id && id.toLowerCase().includes(query.toLowerCase())) {
+                  beadMatches.push({ id, title: typeof issue === 'object' ? issue.title : '', type: 'bead' });
+                }
+              });
+            }
+          });
+          return beadMatches;
+        }
+      },
+      renderItem: (item) => {
+        if (item.type === 'formula') {
+          return `
+            <div class="bead-item formula">
+              <span class="bead-icon">📜</span>
+              <span class="bead-id">${escapeHtml(item.name || item.id)}</span>
+              <span class="bead-desc">${escapeHtml(item.description || 'Formula')}</span>
+            </div>
+          `;
+        }
+        return renderBeadItem(item);
+      },
+      onSelect: (item, input) => {
+        input.value = item.id || item.name;
+      },
+      minChars: 1,
+      debounce: 150,
+    });
+  }
+
+  // Populate target dropdown with agents
+  populateTargetDropdown(element);
+}
+
+async function populateTargetDropdown(modalElement) {
+  const targetSelect = modalElement.querySelector('[name="target"]');
+  if (!targetSelect) return;
+
+  // Keep first option (placeholder)
+  const placeholder = targetSelect.options[0];
+  targetSelect.innerHTML = '';
+  targetSelect.appendChild(placeholder);
+
+  try {
+    // Try to get targets from API first
+    let targets = [];
+    try {
+      targets = await api.getTargets();
+    } catch {
+      // Fallback to agents from state
+      targets = state.get('agents') || [];
+    }
+
+    // Group targets by rig/town
+    const groups = new Map();
+    targets.forEach(target => {
+      const parts = (target.path || target.id || '').split('/');
+      const group = parts.length > 1 ? parts[0] : 'Workers';
+      if (!groups.has(group)) {
+        groups.set(group, []);
+      }
+      groups.get(group).push(target);
+    });
+
+    // Create optgroups
+    groups.forEach((agents, groupName) => {
+      const optgroup = document.createElement('optgroup');
+      optgroup.label = groupName;
+
+      agents.forEach(agent => {
+        const option = document.createElement('option');
+        option.value = agent.path || agent.id;
+        option.textContent = agent.name || agent.id;
+        if (agent.status === 'busy') {
+          option.textContent += ' (busy)';
+          option.className = 'target-busy';
+        }
+        optgroup.appendChild(option);
+      });
+
+      targetSelect.appendChild(optgroup);
+    });
+
+    // If no groups, add flat list
+    if (groups.size === 0 && targets.length > 0) {
+      targets.forEach(target => {
+        const option = document.createElement('option');
+        option.value = target.path || target.id;
+        option.textContent = target.name || target.id;
+        targetSelect.appendChild(option);
+      });
+    }
+
+    // If still empty, add default workers
+    if (targetSelect.options.length === 1) {
+      const defaults = [
+        { id: 'work1/', name: 'work1' },
+        { id: 'work2/', name: 'work2' },
+        { id: 'work3/', name: 'work3' },
+        { id: 'work4/', name: 'work4' },
+      ];
+      defaults.forEach(d => {
+        const option = document.createElement('option');
+        option.value = d.id;
+        option.textContent = d.name;
+        targetSelect.appendChild(option);
+      });
+    }
+  } catch (err) {
+    console.error('[Modals] Failed to populate targets:', err);
   }
 }
 
@@ -391,6 +545,90 @@ function showMailDetailModal(mailId, mail) {
     </div>
   `;
   showDynamicModal('mail-detail', content);
+}
+
+// === Escalation Modal ===
+
+function showEscalationModal(convoyId, convoyName) {
+  const content = `
+    <div class="modal-header escalation-header">
+      <h2>
+        <span class="material-icons warning-icon">warning</span>
+        Escalate Issue
+      </h2>
+      <button class="btn btn-icon" data-modal-close>
+        <span class="material-icons">close</span>
+      </button>
+    </div>
+    <div class="modal-body">
+      <div class="escalation-info">
+        <p>You are about to escalate convoy: <strong>${escapeHtml(convoyName || convoyId)}</strong></p>
+        <p class="escalation-warning">This will notify the Mayor and may interrupt other workflows.</p>
+      </div>
+      <form id="escalation-form">
+        <input type="hidden" name="convoy_id" value="${convoyId}">
+        <div class="form-group">
+          <label for="escalation-reason">Reason for Escalation</label>
+          <textarea
+            id="escalation-reason"
+            name="reason"
+            rows="4"
+            required
+            placeholder="Describe why this issue needs immediate attention..."
+          ></textarea>
+        </div>
+        <div class="form-group">
+          <label for="escalation-priority">Priority Level</label>
+          <select id="escalation-priority" name="priority">
+            <option value="normal">Normal - Needs attention soon</option>
+            <option value="high">High - Blocking other work</option>
+            <option value="critical">Critical - Production issue</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="checkbox-label">
+            <input type="checkbox" name="block_others" value="true">
+            Block new work assignments until resolved
+          </label>
+        </div>
+        <div class="form-actions">
+          <button type="button" class="btn btn-secondary" data-modal-close>Cancel</button>
+          <button type="submit" class="btn btn-danger">
+            <span class="material-icons">priority_high</span>
+            Escalate
+          </button>
+        </div>
+      </form>
+    </div>
+  `;
+
+  const modal = showDynamicModal('escalation', content);
+
+  // Handle form submission
+  const form = modal.querySelector('#escalation-form');
+  form?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const reason = form.querySelector('[name="reason"]')?.value;
+    const priority = form.querySelector('[name="priority"]')?.value || 'normal';
+
+    if (!reason) {
+      showToast('Please provide a reason for escalation', 'warning');
+      return;
+    }
+
+    try {
+      await api.escalate(convoyId, reason, priority);
+      showToast('Issue escalated to Mayor', 'success');
+      closeAllModals();
+
+      // Dispatch event for UI updates
+      document.dispatchEvent(new CustomEvent('convoy:escalated', {
+        detail: { convoyId, reason, priority }
+      }));
+    } catch (err) {
+      showToast(`Failed to escalate: ${err.message}`, 'error');
+    }
+  });
 }
 
 /**

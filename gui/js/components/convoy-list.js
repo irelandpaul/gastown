@@ -134,6 +134,17 @@ function setupConvoyEventListeners(container) {
       }
     });
   });
+
+  // Escalate buttons
+  container.querySelectorAll('[data-action="escalate"]').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const card = btn.closest('.convoy-card');
+      const convoyId = card.dataset.convoyId;
+      const convoyName = card.querySelector('.convoy-name')?.textContent || convoyId;
+      openEscalationModal(convoyId, convoyName);
+    });
+  });
 }
 
 /**
@@ -226,6 +237,9 @@ function renderConvoyCard(convoy, index) {
         <div class="convoy-actions">
           <button class="btn btn-icon" title="Sling Work" data-action="sling">
             <span class="material-icons">send</span>
+          </button>
+          <button class="btn btn-icon" title="Escalate" data-action="escalate">
+            <span class="material-icons">priority_high</span>
           </button>
           <button class="btn btn-icon" title="View Details" data-action="view">
             <span class="material-icons">visibility</span>
@@ -477,6 +491,16 @@ function showIssueDetail(issueId) {
  */
 function openNudgeModal(workerId) {
   const event = new CustomEvent('agent:nudge', { detail: { agentId: workerId } });
+  document.dispatchEvent(event);
+}
+
+/**
+ * Open escalation modal for a convoy
+ */
+function openEscalationModal(convoyId, convoyName) {
+  const event = new CustomEvent('convoy:escalate', {
+    detail: { convoyId, convoyName }
+  });
   document.dispatchEvent(event);
 }
 

@@ -193,6 +193,65 @@ app.post('/api/nudge', (req, res) => {
   });
 });
 
+// Search endpoints
+app.get('/api/beads/search', (req, res) => {
+  const query = (req.query.q || '').toLowerCase();
+  const mockBeads = [
+    { id: 'gt-123', title: 'Fix login redirect', status: 'open' },
+    { id: 'gt-124', title: 'Add authentication module', status: 'in-progress' },
+    { id: 'gt-125', title: 'Update user dashboard', status: 'done' },
+    { id: 'bd-001', title: 'Database migration script', status: 'blocked' },
+    { id: 'bd-002', title: 'API rate limiting', status: 'open' },
+  ];
+  const results = mockBeads.filter(b =>
+    b.id.toLowerCase().includes(query) ||
+    b.title.toLowerCase().includes(query)
+  );
+  res.json(results);
+});
+
+app.get('/api/formulas/search', (req, res) => {
+  const query = (req.query.q || '').toLowerCase();
+  const mockFormulas = [
+    { name: 'shiny-feature', description: 'Create a polished feature implementation' },
+    { name: 'quick-fix', description: 'Fast bug fix with minimal testing' },
+    { name: 'deep-dive', description: 'Thorough investigation and analysis' },
+    { name: 'refactor', description: 'Code cleanup and restructuring' },
+  ];
+  const results = mockFormulas.filter(f =>
+    f.name.toLowerCase().includes(query) ||
+    f.description.toLowerCase().includes(query)
+  );
+  res.json(results);
+});
+
+app.get('/api/targets', (req, res) => {
+  const targets = [
+    { id: 'work1/', name: 'work1', path: 'work1/', status: 'idle' },
+    { id: 'work2/', name: 'work2', path: 'work2/', status: 'busy' },
+    { id: 'work3/', name: 'work3', path: 'work3/', status: 'idle' },
+    { id: 'work4/', name: 'work4', path: 'work4/', status: 'idle' },
+    { id: 'greenplace/Toast', name: 'Toast', path: 'greenplace/Toast', status: 'idle' },
+    { id: 'greenplace/Witness', name: 'Witness', path: 'greenplace/Witness', status: 'idle' },
+  ];
+  res.json(targets);
+});
+
+app.post('/api/escalate', (req, res) => {
+  const { convoy_id, reason, priority } = req.body;
+  res.json({ success: true, convoy_id, reason, priority });
+
+  // Broadcast event
+  broadcastEvent({
+    type: 'activity',
+    data: {
+      type: 'escalation',
+      message: `Convoy ${convoy_id} escalated (${priority}): ${reason}`,
+      timestamp: new Date().toISOString(),
+    },
+  });
+});
+
 // Create HTTP server
 const server = createServer(app);
 

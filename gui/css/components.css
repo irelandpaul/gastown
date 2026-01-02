@@ -1458,3 +1458,244 @@ select {
 .convoy-status.status-cancelled .material-icons {
   color: var(--text-muted);
 }
+
+/* ============================================
+   AUTOCOMPLETE
+   ============================================ */
+
+.autocomplete-dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  max-height: 300px;
+  overflow-y: auto;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-lg);
+  z-index: 1000;
+  margin-top: var(--space-xs);
+}
+
+.autocomplete-dropdown.hidden {
+  display: none;
+}
+
+.autocomplete-item {
+  padding: var(--space-sm) var(--space-md);
+  cursor: pointer;
+  border-bottom: 1px solid var(--border-subtle);
+  transition: background-color 0.15s ease;
+}
+
+.autocomplete-item:last-child {
+  border-bottom: none;
+}
+
+.autocomplete-item:hover,
+.autocomplete-item.selected {
+  background: var(--bg-hover);
+}
+
+.autocomplete-item.selected {
+  background: rgba(88, 166, 255, 0.1);
+}
+
+.autocomplete-label {
+  font-weight: 500;
+}
+
+.autocomplete-desc {
+  display: block;
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
+  margin-top: 2px;
+}
+
+.autocomplete-empty {
+  padding: var(--space-md);
+  text-align: center;
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+/* Bead Item in Autocomplete */
+.bead-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
+.bead-item .bead-icon {
+  font-size: 1.2rem;
+}
+
+.bead-item .bead-id {
+  font-family: var(--font-mono);
+  font-weight: 600;
+  color: var(--accent-primary);
+}
+
+.bead-item .bead-title {
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.bead-item .bead-desc {
+  color: var(--text-secondary);
+  font-size: var(--text-xs);
+}
+
+.bead-item .bead-status {
+  font-size: var(--text-xs);
+  padding: 2px 6px;
+  border-radius: var(--radius-sm);
+  text-transform: uppercase;
+  background: var(--bg-tertiary);
+}
+
+.bead-item.formula {
+  background: rgba(242, 201, 76, 0.05);
+}
+
+/* Agent Item in Autocomplete */
+.agent-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
+.agent-item .agent-name {
+  font-weight: 500;
+}
+
+.agent-item .agent-path {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
+}
+
+.agent-item .agent-status {
+  margin-left: auto;
+  font-size: var(--text-xs);
+  padding: 2px 6px;
+  border-radius: var(--radius-sm);
+}
+
+/* Target Select Option Styles */
+.target-busy {
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+/* ============================================
+   ESCALATION MODAL
+   ============================================ */
+
+.escalation-header {
+  background: linear-gradient(135deg, var(--accent-danger) 0%, #dc2626 100%);
+  color: white;
+  margin: calc(var(--space-md) * -1);
+  margin-bottom: var(--space-md);
+  padding: var(--space-md);
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+}
+
+.escalation-header h2 {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  color: white;
+}
+
+.escalation-header .warning-icon {
+  font-size: 1.5rem;
+  animation: pulse 1.5s infinite;
+}
+
+.escalation-header .modal-close {
+  color: white;
+}
+
+.escalation-header .modal-close:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.escalation-info {
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  border-radius: var(--radius-md);
+  padding: var(--space-md);
+  margin-bottom: var(--space-md);
+}
+
+.escalation-info p {
+  margin: 0;
+}
+
+.escalation-info p + p {
+  margin-top: var(--space-xs);
+}
+
+.escalation-warning {
+  color: var(--accent-danger);
+  font-size: var(--text-sm);
+  font-style: italic;
+}
+
+.checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  cursor: pointer;
+  user-select: none;
+}
+
+.checkbox-label input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  cursor: pointer;
+  accent-color: var(--accent-primary);
+}
+
+/* ============================================
+   NUDGE ENHANCEMENTS
+   ============================================ */
+
+.nudge-quick-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-xs);
+  margin-bottom: var(--space-md);
+}
+
+.nudge-quick-btn {
+  padding: var(--space-xs) var(--space-sm);
+  font-size: var(--text-xs);
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.nudge-quick-btn:hover {
+  background: var(--bg-hover);
+  border-color: var(--accent-primary);
+}
+
+/* Pulse Animation */
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.7;
+    transform: scale(1.05);
+  }
+}

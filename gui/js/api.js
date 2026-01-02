@@ -101,6 +101,24 @@ export const api = {
   nudge(target, message) {
     return this.post('/api/nudge', { target, message });
   },
+
+  // === Search ===
+  searchBeads(query) {
+    return this.get(`/api/beads/search?q=${encodeURIComponent(query)}`);
+  },
+
+  searchFormulas(query) {
+    return this.get(`/api/formulas/search?q=${encodeURIComponent(query)}`);
+  },
+
+  getTargets() {
+    return this.get('/api/targets');
+  },
+
+  // === Escalation ===
+  escalate(convoyId, reason, priority = 'normal') {
+    return this.post('/api/escalate', { convoy_id: convoyId, reason, priority });
+  },
 };
 
 // WebSocket Client
