@@ -16,7 +16,7 @@ Create a comprehensive GUI for Gastown multi-agent orchestrator with modern anim
 - Branches: main, master, work1-8 (worktrees)
 - This ledger in work1 worktree
 - Go tests: 31/32 packages pass (beads needs `pip install beads-cli`)
-- GUI tests: 53/53 tests passing (24 E2E + 29 unit)
+- GUI tests: 72/72 tests passing (24 E2E + 29 unit + 19 integration)
 
 ## Implementation Phases
 
@@ -81,10 +81,11 @@ Create a comprehensive GUI for Gastown multi-agent orchestrator with modern anim
 ## Testing Infrastructure
 - `gui/test/setup.js` - Puppeteer test utilities
 - `gui/test/e2e.test.js` - Comprehensive E2E test suite (24 tests)
+- `gui/test/integration.test.js` - Full integration test suite (19 tests)
 - `gui/test/unit/state.test.js` - State management unit tests (29 tests)
 - `gui/test/mock-server.js` - Mock server with search/targets/escalate
 - `gui/test/globalSetup.js` - Vitest global setup hooks
-- `gui/vitest.config.js` - Vitest configuration (E2E)
+- `gui/vitest.config.js` - Vitest configuration (E2E + integration)
 - `gui/vitest.unit.config.js` - Vitest configuration (unit tests)
 
 ## Running Tests
@@ -136,6 +137,10 @@ All 7 implementation phases are complete:
 - Escalation form with priority levels
 - Enhanced animations (25+ animation types)
 - Performance utilities (debounce, throttle, virtual scroll, etc.)
-- Comprehensive test suite (53 tests total)
+- Comprehensive test suite (72 tests total):
+  - 24 E2E tests (page load, navigation, modals, responsive)
+  - 19 integration tests (WebSocket, API, autocomplete, escalation flow)
+  - 29 unit tests (state management)
 
 The GUI is production-ready for integration with the Gastown Go backend.
+All features fully automated and tested with Puppeteer.
