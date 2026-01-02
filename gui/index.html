@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Gas Town - Multi-Agent Orchestrator</title>
+  <link rel="stylesheet" href="css/reset.css">
+  <link rel="stylesheet" href="css/variables.css">
+  <link rel="stylesheet" href="css/layout.css">
+  <link rel="stylesheet" href="css/components.css">
+  <link rel="stylesheet" href="css/animations.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+</head>
+<body>
+  <div id="app">
+    <!-- Header -->
+    <header class="header">
+      <div class="header-left">
+        <div class="logo">
+          <span class="logo-icon">🏭</span>
+          <span class="logo-text">GAS TOWN</span>
+        </div>
+        <div class="town-name" id="town-name">Loading...</div>
+      </div>
+      <div class="header-center">
+        <div class="nav-tabs">
+          <button class="nav-tab active" data-view="convoys">
+            <span class="material-icons">local_shipping</span>
+            Convoys
+          </button>
+          <button class="nav-tab" data-view="agents">
+            <span class="material-icons">groups</span>
+            Agents
+          </button>
+          <button class="nav-tab" data-view="mail">
+            <span class="material-icons">mail</span>
+            Mail
+            <span class="badge hidden" id="mail-badge">0</span>
+          </button>
+        </div>
+      </div>
+      <div class="header-right">
+        <button class="icon-btn" id="theme-toggle" title="Toggle theme">
+          <span class="material-icons">dark_mode</span>
+        </button>
+        <button class="icon-btn" id="refresh-btn" title="Refresh">
+          <span class="material-icons">refresh</span>
+        </button>
+        <div class="connection-status" id="connection-status">
+          <span class="status-dot"></span>
+          <span class="status-text">Connecting...</span>
+        </div>
+      </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="main">
+      <!-- Sidebar (Agent Tree) -->
+      <aside class="sidebar" id="sidebar">
+        <div class="sidebar-header">
+          <h2>Agents</h2>
+          <button class="icon-btn-sm" id="collapse-sidebar">
+            <span class="material-icons">chevron_left</span>
+          </button>
+        </div>
+        <div class="agent-tree" id="agent-tree">
+          <!-- Populated by JS -->
+        </div>
+      </aside>
+
+      <!-- Primary Content -->
+      <section class="content">
+        <!-- Convoy View -->
+        <div class="view active" id="view-convoys">
+          <div class="view-header">
+            <h1>Active Convoys</h1>
+            <div class="view-actions">
+              <button class="btn btn-primary" id="new-convoy-btn">
+                <span class="material-icons">add</span>
+                New Convoy
+              </button>
+            </div>
+          </div>
+          <div class="convoy-list" id="convoy-list">
+            <!-- Populated by JS -->
+          </div>
+        </div>
+
+        <!-- Agents View -->
+        <div class="view" id="view-agents">
+          <div class="view-header">
+            <h1>All Agents</h1>
+            <div class="view-actions">
+              <select class="filter-select" id="agent-filter">
+                <option value="all">All Agents</option>
+                <option value="running">Running</option>
+                <option value="idle">Idle</option>
+                <option value="working">Working</option>
+              </select>
+            </div>
+          </div>
+          <div class="agent-grid" id="agent-grid">
+            <!-- Populated by JS -->
+          </div>
+        </div>
+
+        <!-- Mail View -->
+        <div class="view" id="view-mail">
+          <div class="view-header">
+            <h1>Inbox</h1>
+            <div class="view-actions">
+              <button class="btn btn-secondary" id="compose-mail-btn">
+                <span class="material-icons">edit</span>
+                Compose
+              </button>
+            </div>
+          </div>
+          <div class="mail-list" id="mail-list">
+            <!-- Populated by JS -->
+          </div>
+        </div>
+      </section>
+
+      <!-- Activity Feed -->
+      <aside class="activity-feed" id="activity-feed">
+        <div class="feed-header">
+          <h2>Activity</h2>
+          <button class="icon-btn-sm" id="clear-feed">
+            <span class="material-icons">clear_all</span>
+          </button>
+        </div>
+        <div class="feed-list" id="feed-list">
+          <!-- Populated by JS -->
+        </div>
+      </aside>
+    </main>
+
+    <!-- Status Bar -->
+    <footer class="status-bar">
+      <div class="status-left">
+        <span class="hook-status" id="hook-status">
+          <span class="material-icons">anchor</span>
+          <span class="hook-text">No work hooked</span>
+        </span>
+      </div>
+      <div class="status-center">
+        <span id="status-message">Ready</span>
+      </div>
+      <div class="status-right">
+        <span class="keyboard-hint">Press <kbd>?</kbd> for shortcuts</span>
+      </div>
+    </footer>
+
+    <!-- Modals -->
+    <div class="modal-overlay hidden" id="modal-overlay">
+      <!-- New Convoy Modal -->
+      <div class="modal hidden" id="modal-new-convoy">
+        <div class="modal-header">
+          <h2>Create Convoy</h2>
+          <button class="modal-close" data-close="modal">
+            <span class="material-icons">close</span>
+          </button>
+        </div>
+        <form class="modal-body" id="convoy-form">
+          <div class="form-group">
+            <label for="convoy-name">Convoy Name</label>
+            <input type="text" id="convoy-name" placeholder="e.g., Deploy v2.0" required>
+          </div>
+          <div class="form-group">
+            <label for="convoy-issues">Tracked Issues</label>
+            <textarea id="convoy-issues" placeholder="Enter issue IDs (one per line)&#10;e.g., gt-123&#10;bd-456" rows="4"></textarea>
+          </div>
+          <div class="form-group">
+            <label for="convoy-notify">Notify on completion</label>
+            <select id="convoy-notify">
+              <option value="">None</option>
+              <option value="mayor/">Mayor</option>
+              <option value="human">Human Overseer</option>
+            </select>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-close="modal">Cancel</button>
+            <button type="submit" class="btn btn-primary">Create Convoy</button>
+          </div>
+        </form>
+      </div>
+
+      <!-- Sling Modal -->
+      <div class="modal hidden" id="modal-sling">
+        <div class="modal-header">
+          <h2>Sling Work</h2>
+          <button class="modal-close" data-close="modal">
+            <span class="material-icons">close</span>
+          </button>
+        </div>
+        <form class="modal-body" id="sling-form">
+          <div class="form-group">
+            <label for="sling-bead">Issue or Formula</label>
+            <input type="text" id="sling-bead" placeholder="e.g., gt-123 or shiny-feature" required>
+          </div>
+          <div class="form-group">
+            <label for="sling-target">Target</label>
+            <select id="sling-target" required>
+              <option value="">Select target...</option>
+              <!-- Populated dynamically -->
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="sling-quality">Quality</label>
+            <select id="sling-quality">
+              <option value="shiny">Shiny (default)</option>
+              <option value="basic">Basic</option>
+              <option value="chrome">Chrome</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="sling-args">Instructions (optional)</label>
+            <textarea id="sling-args" placeholder="Additional instructions for the worker" rows="3"></textarea>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-close="modal">Cancel</button>
+            <button type="submit" class="btn btn-primary">Sling</button>
+          </div>
+        </form>
+      </div>
+
+      <!-- Compose Mail Modal -->
+      <div class="modal hidden" id="modal-compose">
+        <div class="modal-header">
+          <h2>Compose Message</h2>
+          <button class="modal-close" data-close="modal">
+            <span class="material-icons">close</span>
+          </button>
+        </div>
+        <form class="modal-body" id="compose-form">
+          <div class="form-group">
+            <label for="mail-to">To</label>
+            <input type="text" id="mail-to" placeholder="e.g., mayor/, greenplace/Toast" required>
+          </div>
+          <div class="form-group">
+            <label for="mail-subject">Subject</label>
+            <input type="text" id="mail-subject" placeholder="Subject" required>
+          </div>
+          <div class="form-group">
+            <label for="mail-message">Message</label>
+            <textarea id="mail-message" placeholder="Your message..." rows="6" required></textarea>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-close="modal">Cancel</button>
+            <button type="submit" class="btn btn-primary">Send</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- Toast Container -->
+    <div class="toast-container" id="toast-container"></div>
+  </div>
+
+  <!-- Scripts -->
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>
