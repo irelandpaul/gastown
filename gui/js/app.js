@@ -298,12 +298,18 @@ function setupKeyboardShortcuts() {
 }
 
 function showKeyboardHelp() {
-  showToast(`
-    Keyboard Shortcuts:
-    1 - Convoys | 2 - Agents | 3 - Mail
-    Ctrl+N - New Convoy | Ctrl+R - Refresh
-    Esc - Close modal
-  `, 'info', 5000);
+  // Open help modal instead of toast
+  const helpBtn = document.getElementById('help-btn');
+  if (helpBtn) {
+    helpBtn.click();
+  } else {
+    showToast(`
+      Keyboard Shortcuts:
+      1 - Convoys | 2 - Agents | 3 - Mail
+      Ctrl+N - New Convoy | Ctrl+R - Refresh
+      Esc - Close modal
+    `, 'info', 5000);
+  }
 }
 
 function closeAllModals() {

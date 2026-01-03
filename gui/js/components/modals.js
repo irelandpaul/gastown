@@ -40,6 +40,11 @@ export function initModals() {
     onSubmit: handleMailComposeSubmit,
   });
 
+  registerModal('help', {
+    element: document.getElementById('help-modal'),
+    onOpen: initHelpModal,
+  });
+
   // Close on overlay click
   overlay?.addEventListener('click', (e) => {
     if (e.target === overlay) {
@@ -384,15 +389,137 @@ async function handleSlingSubmit(form) {
 // === Mail Compose Modal ===
 
 function initMailComposeModal(element, data) {
-  // Pre-fill if replying
-  if (data.replyTo) {
-    const toInput = element.querySelector('[name="to"]');
-    if (toInput) toInput.value = data.replyTo;
-  }
+  // Populate recipient dropdown
+  populateRecipientDropdown(element, data.replyTo);
+
+  // Pre-fill subject if replying
   if (data.subject) {
     const subjectInput = element.querySelector('[name="subject"]');
     if (subjectInput) subjectInput.value = `Re: ${data.subject}`;
   }
+}
+
+async function populateRecipientDropdown(modalElement, preselect = null) {
+  const toSelect = modalElement.querySelector('[name="to"]');
+  if (!toSelect) return;
+
+  // Keep first option (placeholder)
+  const placeholder = toSelect.options[0];
+  toSelect.innerHTML = '';
+  toSelect.appendChild(placeholder);
+
+  try {
+    // Try to get agents from API first
+    let agents = [];
+    try {
+      agents = await api.getAgents();
+    } catch {
+      // Fallback to agents from state
+      agents = state.get('agents') || [];
+    }
+
+    // Add common recipients group
+    const commonGroup = document.createElement('optgroup');
+    commonGroup.label = 'Common Recipients';
+
+    // Always include Mayor and Overseer
+    const commonRecipients = [
+      { id: 'mayor/', name: 'Mayor', role: 'mayor' },
+      { id: 'human', name: 'Human Overseer', role: 'overseer' },
+    ];
+
+    commonRecipients.forEach(r => {
+      const option = document.createElement('option');
+      option.value = r.id;
+      option.textContent = r.name;
+      option.className = `recipient-${r.role}`;
+      commonGroup.appendChild(option);
+    });
+    toSelect.appendChild(commonGroup);
+
+    // Group agents by role
+    const roleGroups = new Map();
+    const roleOrder = ['deacon', 'witness', 'refinery', 'polecat'];
+
+    agents.forEach(agent => {
+      const role = (agent.role || 'worker').toLowerCase();
+      if (!roleGroups.has(role)) {
+        roleGroups.set(role, []);
+      }
+      roleGroups.get(role).push(agent);
+    });
+
+    // Create optgroups for each role
+    roleOrder.forEach(role => {
+      const roleAgents = roleGroups.get(role);
+      if (!roleAgents || roleAgents.length === 0) return;
+
+      const optgroup = document.createElement('optgroup');
+      optgroup.label = capitalize(role) + 's';
+
+      roleAgents.forEach(agent => {
+        const option = document.createElement('option');
+        option.value = agent.path || agent.id || agent.name;
+        option.textContent = agent.name || agent.id;
+        option.className = `recipient-${role}`;
+        optgroup.appendChild(option);
+      });
+
+      toSelect.appendChild(optgroup);
+    });
+
+    // Add any remaining roles
+    roleGroups.forEach((roleAgents, role) => {
+      if (roleOrder.includes(role)) return;
+      if (roleAgents.length === 0) return;
+
+      const optgroup = document.createElement('optgroup');
+      optgroup.label = capitalize(role) + 's';
+
+      roleAgents.forEach(agent => {
+        const option = document.createElement('option');
+        option.value = agent.path || agent.id || agent.name;
+        option.textContent = agent.name || agent.id;
+        optgroup.appendChild(option);
+      });
+
+      toSelect.appendChild(optgroup);
+    });
+
+    // Pre-select if replying
+    if (preselect) {
+      toSelect.value = preselect;
+    }
+
+  } catch (err) {
+    console.error('[Modals] Failed to populate recipients:', err);
+  }
+}
+
+function capitalize(str) {
+  return str.charAt(0).toUpperCase() + str.slice(1);
+}
+
+// === Help Modal ===
+
+function initHelpModal(element) {
+  // Set up tab switching
+  const tabs = element.querySelectorAll('.help-tab');
+  const panels = element.querySelectorAll('.help-panel');
+
+  tabs.forEach(tab => {
+    tab.addEventListener('click', () => {
+      const tabId = tab.dataset.tab;
+
+      // Update active tab
+      tabs.forEach(t => t.classList.toggle('active', t === tab));
+
+      // Update active panel
+      panels.forEach(p => {
+        p.classList.toggle('active', p.id === `help-${tabId}`);
+      });
+    });
+  });
 }
 
 async function handleMailComposeSubmit(form) {

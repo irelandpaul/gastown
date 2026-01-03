@@ -26,15 +26,15 @@
       </div>
       <div class="header-center">
         <div class="nav-tabs">
-          <button class="nav-tab active" data-view="convoys">
+          <button class="nav-tab active" data-view="convoys" data-tooltip="Groups of related work items. Track progress across multiple tasks.">
             <span class="material-icons">local_shipping</span>
             Convoys
           </button>
-          <button class="nav-tab" data-view="agents">
+          <button class="nav-tab" data-view="agents" data-tooltip="Worker agents: Mayor, Witness, Refinery, and Polecats.">
             <span class="material-icons">groups</span>
             Agents
           </button>
-          <button class="nav-tab" data-view="mail">
+          <button class="nav-tab" data-view="mail" data-tooltip="Messages between agents and the human overseer.">
             <span class="material-icons">mail</span>
             Mail
             <span class="badge hidden" id="mail-badge">0</span>
@@ -42,13 +42,16 @@
         </div>
       </div>
       <div class="header-right">
+        <button class="icon-btn" id="help-btn" title="Help & Guide" data-modal-open="help">
+          <span class="material-icons">help_outline</span>
+        </button>
         <button class="icon-btn" id="theme-toggle" title="Toggle theme">
           <span class="material-icons">dark_mode</span>
         </button>
         <button class="icon-btn" id="refresh-btn" title="Refresh">
           <span class="material-icons">refresh</span>
         </button>
-        <div class="connection-status" id="connection-status">
+        <div class="connection-status" id="connection-status" data-tooltip="Real-time WebSocket connection to Gas Town server">
           <span class="status-dot"></span>
           <span class="status-text">Connecting...</span>
         </div>
@@ -77,11 +80,11 @@
           <div class="view-header">
             <h1>Active Convoys</h1>
             <div class="view-actions">
-              <button class="btn btn-secondary" id="sling-btn" data-modal-open="sling">
+              <button class="btn btn-secondary" id="sling-btn" data-modal-open="sling" data-tooltip="Assign work to a polecat worker agent">
                 <span class="material-icons">send</span>
                 Sling
               </button>
-              <button class="btn btn-primary" id="new-convoy-btn" data-modal-open="new-convoy">
+              <button class="btn btn-primary" id="new-convoy-btn" data-modal-open="new-convoy" data-tooltip="Create a group of related issues to track together">
                 <span class="material-icons">add</span>
                 New Convoy
               </button>
@@ -144,7 +147,7 @@
     <!-- Status Bar -->
     <footer class="status-bar">
       <div class="status-left">
-        <span class="hook-status" id="hook-status">
+        <span class="hook-status" id="hook-status" data-tooltip="Work currently 'hooked' to an agent. On wake, agents run what's on their hook.">
           <span class="material-icons">anchor</span>
           <span class="hook-text">No work hooked</span>
         </span>
@@ -153,7 +156,7 @@
         <span id="status-message">Ready</span>
       </div>
       <div class="status-right">
-        <span class="keyboard-hint">Press <kbd>?</kbd> for shortcuts</span>
+        <span class="keyboard-hint">Press <kbd>?</kbd> for help</span>
       </div>
     </footer>
 
@@ -241,7 +244,10 @@
         <form class="modal-body" id="compose-form">
           <div class="form-group">
             <label for="mail-to">To</label>
-            <input type="text" id="mail-to" name="to" placeholder="e.g., mayor/, greenplace/Toast" required>
+            <select id="mail-to" name="to" required>
+              <option value="">Select recipient...</option>
+              <!-- Populated dynamically from agents -->
+            </select>
           </div>
           <div class="form-group">
             <label for="mail-subject">Subject</label>
@@ -256,6 +262,186 @@
             <button type="submit" class="btn btn-primary">Send</button>
           </div>
         </form>
+      </div>
+
+      <!-- Help/Glossary Modal -->
+      <div class="modal modal-lg hidden" id="help-modal">
+        <div class="modal-header">
+          <h2><span class="material-icons">help_outline</span> Gas Town Guide</h2>
+          <button class="modal-close" data-modal-close>
+            <span class="material-icons">close</span>
+          </button>
+        </div>
+        <div class="modal-body help-content">
+          <div class="help-tabs">
+            <button class="help-tab active" data-tab="concepts">Concepts</button>
+            <button class="help-tab" data-tab="roles">Roles</button>
+            <button class="help-tab" data-tab="workflow">Workflow</button>
+            <button class="help-tab" data-tab="shortcuts">Shortcuts</button>
+          </div>
+
+          <div class="help-panel active" id="help-concepts">
+            <div class="glossary-grid">
+              <div class="glossary-item">
+                <div class="glossary-term">
+                  <span class="material-icons">home</span>
+                  Town
+                </div>
+                <div class="glossary-def">Your workspace directory (e.g., ~/gt/). Contains all rigs, agents, and configuration.</div>
+              </div>
+              <div class="glossary-item">
+                <div class="glossary-term">
+                  <span class="material-icons">folder_special</span>
+                  Rig
+                </div>
+                <div class="glossary-def">A git project container with its own agents. Each rig has a Witness (monitor) and optional Refinery (merge queue).</div>
+              </div>
+              <div class="glossary-item">
+                <div class="glossary-term">
+                  <span class="material-icons">local_shipping</span>
+                  Convoy
+                </div>
+                <div class="glossary-def">A group of related work items (issues/beads). Convoys track progress across multiple tasks.</div>
+              </div>
+              <div class="glossary-item">
+                <div class="glossary-term">
+                  <span class="material-icons">send</span>
+                  Sling
+                </div>
+                <div class="glossary-def">Assign work to a worker agent. "Sling" a bead/issue to a polecat to start work.</div>
+              </div>
+              <div class="glossary-item">
+                <div class="glossary-term">
+                  <span class="material-icons">anchor</span>
+                  Hook
+                </div>
+                <div class="glossary-def">Where work "hangs" on an agent. On wake, agents run what's on their hook. Work survives crashes.</div>
+              </div>
+              <div class="glossary-item">
+                <div class="glossary-term">
+                  <span class="material-icons">bubble_chart</span>
+                  Bead
+                </div>
+                <div class="glossary-def">A work item in the git-backed issue tracker. Beads persist in your repo and track all work state.</div>
+              </div>
+              <div class="glossary-item">
+                <div class="glossary-term">
+                  <span class="material-icons">science</span>
+                  Formula / Molecule
+                </div>
+                <div class="glossary-def">Workflow templates. Cook a formula into a molecule, then sling it. Molecules survive agent restarts.</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="help-panel" id="help-roles">
+            <div class="roles-grid">
+              <div class="role-card role-mayor">
+                <div class="role-header">
+                  <span class="role-icon">👔</span>
+                  <h4>Mayor</h4>
+                </div>
+                <p>Global coordinator for cross-rig work. Dispatches tasks, handles escalations, manages priorities across all projects.</p>
+              </div>
+              <div class="role-card role-deacon">
+                <div class="role-header">
+                  <span class="role-icon">⚙️</span>
+                  <h4>Deacon</h4>
+                </div>
+                <p>Daemon process manager. Handles agent lifecycle, plugin execution, and system-level coordination.</p>
+              </div>
+              <div class="role-card role-witness">
+                <div class="role-header">
+                  <span class="role-icon">👁️</span>
+                  <h4>Witness</h4>
+                </div>
+                <p>Per-rig monitor. Watches polecats, detects stuck workers, handles lifecycle events. One per project.</p>
+              </div>
+              <div class="role-card role-refinery">
+                <div class="role-header">
+                  <span class="role-icon">🔧</span>
+                  <h4>Refinery</h4>
+                </div>
+                <p>Merge queue processor. Reviews PRs, runs integration tests, manages the code review pipeline.</p>
+              </div>
+              <div class="role-card role-polecat">
+                <div class="role-header">
+                  <span class="role-icon">🐾</span>
+                  <h4>Polecat</h4>
+                </div>
+                <p>Ephemeral worker agent. Spawns, executes work on its hook, then disappears. Multiple per rig.</p>
+              </div>
+              <div class="role-card">
+                <div class="role-header">
+                  <span class="role-icon">👤</span>
+                  <h4>Overseer (You)</h4>
+                </div>
+                <p>Human operator. Sets strategy, reviews output, handles escalations. Uses this GUI to monitor and direct work.</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="help-panel" id="help-workflow">
+            <div class="workflow-steps">
+              <div class="workflow-step">
+                <div class="step-number">1</div>
+                <div class="step-content">
+                  <h4>Create a Convoy</h4>
+                  <p>Group related issues into a convoy for tracking. Give it a name and add issue IDs.</p>
+                </div>
+              </div>
+              <div class="workflow-arrow">→</div>
+              <div class="workflow-step">
+                <div class="step-number">2</div>
+                <div class="step-content">
+                  <h4>Sling Work</h4>
+                  <p>Assign issues to worker agents (polecats). Select the target rig and quality level.</p>
+                </div>
+              </div>
+              <div class="workflow-arrow">→</div>
+              <div class="workflow-step">
+                <div class="step-number">3</div>
+                <div class="step-content">
+                  <h4>Monitor Progress</h4>
+                  <p>Watch the convoy dashboard. Workers will update status as they complete tasks.</p>
+                </div>
+              </div>
+              <div class="workflow-arrow">→</div>
+              <div class="workflow-step">
+                <div class="step-number">4</div>
+                <div class="step-content">
+                  <h4>Review & Merge</h4>
+                  <p>When work completes, Refinery handles PRs. Escalate to Mayor if issues arise.</p>
+                </div>
+              </div>
+            </div>
+            <div class="workflow-tip">
+              <span class="material-icons">lightbulb</span>
+              <strong>Pro Tip:</strong> Use formulas for repeatable workflows. Cook once, sling many times!
+            </div>
+          </div>
+
+          <div class="help-panel" id="help-shortcuts">
+            <div class="shortcuts-grid">
+              <div class="shortcut-group">
+                <h4>Navigation</h4>
+                <div class="shortcut"><kbd>1</kbd> Convoys view</div>
+                <div class="shortcut"><kbd>2</kbd> Agents view</div>
+                <div class="shortcut"><kbd>3</kbd> Mail view</div>
+              </div>
+              <div class="shortcut-group">
+                <h4>Actions</h4>
+                <div class="shortcut"><kbd>Ctrl</kbd>+<kbd>N</kbd> New convoy</div>
+                <div class="shortcut"><kbd>Ctrl</kbd>+<kbd>R</kbd> Refresh</div>
+                <div class="shortcut"><kbd>?</kbd> This help</div>
+              </div>
+              <div class="shortcut-group">
+                <h4>Modals</h4>
+                <div class="shortcut"><kbd>Esc</kbd> Close modal</div>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
 
