@@ -25,7 +25,8 @@ const server = createServer(app);
 const wss = new WebSocketServer({ server });
 
 const PORT = process.env.PORT || 3000;
-const GT_ROOT = process.env.GT_ROOT || path.join(process.env.HOME, 'gt');
+const HOME = process.env.HOME || require('os').homedir();
+const GT_ROOT = process.env.GT_ROOT || path.join(HOME, 'gt');
 
 // Middleware
 app.use(cors());
