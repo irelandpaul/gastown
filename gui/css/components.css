@@ -2363,28 +2363,23 @@ select {
 
 .tutorial-modal {
   position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.7);
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  bottom: var(--space-lg);
+  right: var(--space-lg);
   z-index: 10000;
-  animation: fadeIn 0.3s ease;
+  animation: slideUp 0.3s ease;
+  pointer-events: none;
 }
 
 .tutorial-content {
   background: var(--bg-secondary);
-  border: 1px solid var(--border-default);
+  border: 1px solid var(--accent-primary);
   border-radius: var(--radius-xl);
-  box-shadow: var(--shadow-lg);
-  max-width: 600px;
-  width: 90%;
-  max-height: 80vh;
+  box-shadow: var(--shadow-lg), 0 0 20px rgba(88, 166, 255, 0.3);
+  max-width: 420px;
+  width: 100%;
+  max-height: 60vh;
   overflow-y: auto;
-  animation: slideUp 0.3s ease;
+  pointer-events: auto;
 }
 
 @keyframes slideUp {
@@ -2665,14 +2660,15 @@ select {
   color: var(--status-done);
 }
 
-/* Tutorial highlight overlay */
+/* Tutorial highlight overlay - no blackout, just border */
 .tutorial-highlight {
   position: fixed;
   border: 3px solid var(--accent-primary);
   border-radius: var(--radius-lg);
-  box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.5);
+  box-shadow: 0 0 15px rgba(88, 166, 255, 0.5), 0 0 30px rgba(88, 166, 255, 0.3);
   pointer-events: none;
   z-index: 9999;
   animation: highlightPulse 2s infinite;
   display: none;
+  background: transparent;
 }
