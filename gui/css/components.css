@@ -1997,7 +1997,7 @@ select {
 }
 
 /* ============================================
-   IMPROVED TOOLTIPS
+   IMPROVED TOOLTIPS (appear BELOW elements)
    ============================================ */
 
 [data-tooltip] {
@@ -2006,12 +2006,16 @@ select {
 
 [data-tooltip]::after {
   content: attr(data-tooltip);
-  position: fixed;
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%);
   padding: var(--space-sm) var(--space-md);
   font-size: var(--text-xs);
   font-weight: normal;
   text-align: center;
   max-width: 280px;
+  min-width: 120px;
   white-space: normal;
   line-height: 1.4;
   color: var(--text-primary);
@@ -2026,12 +2030,15 @@ select {
   z-index: var(--z-tooltip);
 }
 
-/* Tooltip arrow - uses fixed positioning for proper z-index */
+/* Tooltip arrow pointing up */
 [data-tooltip]::before {
   content: '';
-  position: fixed;
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
   border: 6px solid transparent;
-  border-top-color: var(--border-default);
+  border-bottom-color: var(--border-default);
   opacity: 0;
   visibility: hidden;
   transition: opacity var(--transition-fast), visibility var(--transition-fast);
@@ -2042,31 +2049,6 @@ select {
 [data-tooltip]:hover::before {
   opacity: 1;
   visibility: visible;
-}
-
-/* Tooltip positioning classes - applied via JS */
-.tooltip-top::after {
-  bottom: calc(100% + 8px);
-  left: 50%;
-  transform: translateX(-50%);
-}
-
-.tooltip-bottom::after {
-  top: calc(100% + 8px);
-  left: 50%;
-  transform: translateX(-50%);
-}
-
-.tooltip-left::after {
-  right: calc(100% + 8px);
-  top: 50%;
-  transform: translateY(-50%);
-}
-
-.tooltip-right::after {
-  left: calc(100% + 8px);
-  top: 50%;
-  transform: translateY(-50%);
 }
 
 /* ============================================
