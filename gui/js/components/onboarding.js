@@ -85,9 +85,7 @@ const ONBOARDING_STEPS = [
         </div>
       </div>
     `,
-    validate: async () => {
-      return await runSetupChecks();
-    },
+    validate: null,  // Informational only - don't block progress
     action: null,
   },
   {
@@ -607,9 +605,9 @@ async function nextStep() {
 
   // Validate current step
   if (step.validate) {
-    const result = step.validate();
+    const result = await step.validate();
     if (!result.valid) {
-      showError(result.error);
+      showError(result.error || 'Validation failed');
       return;
     }
   }
