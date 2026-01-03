@@ -14,6 +14,7 @@ import { renderActivityFeed } from './components/activity-feed.js';
 import { renderMailList } from './components/mail-list.js';
 import { showToast } from './components/toast.js';
 import { initModals } from './components/modals.js';
+import { startTutorial, shouldShowTutorial } from './components/tutorial.js';
 
 // DOM Elements
 const elements = {
@@ -59,6 +60,11 @@ async function init() {
   await loadInitialData();
 
   console.log('[App] Initialization complete');
+
+  // Auto-start tutorial for first-time users
+  if (shouldShowTutorial()) {
+    setTimeout(() => startTutorial(), 1000);
+  }
 }
 
 // Navigation setup
@@ -351,4 +357,4 @@ if (document.readyState === 'loading') {
 }
 
 // Export for debugging
-window.gastown = { state, api, ws };
+window.gastown = { state, api, ws, startTutorial };
