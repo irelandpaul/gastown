@@ -137,12 +137,12 @@ const ONBOARDING_STEPS = [
       <div class="onboard-form">
         <p class="onboard-explain">A <strong>bead</strong> is a work item (like a GitHub issue). Let's create your first one!</p>
         <div class="form-group">
-          <label for="bead-title">What needs to be done?</label>
-          <input type="text" id="bead-title" placeholder="e.g., Fix login bug, Add dark mode, Update README" required>
+          <label for="onboard-bead-title">What needs to be done?</label>
+          <input type="text" id="onboard-bead-title" placeholder="e.g., Fix login bug, Add dark mode, Update README" required>
         </div>
         <div class="form-group">
-          <label for="bead-desc">Description (optional)</label>
-          <textarea id="bead-desc" rows="3" placeholder="More details about the task..."></textarea>
+          <label for="onboard-bead-desc">Description (optional)</label>
+          <textarea id="onboard-bead-desc" rows="3" placeholder="More details about the task..."></textarea>
         </div>
         <div class="created-bead hidden">
           <span class="material-icons">check_circle</span>
@@ -151,13 +151,13 @@ const ONBOARDING_STEPS = [
       </div>
     `,
     validate: () => {
-      const title = document.getElementById('bead-title')?.value?.trim();
+      const title = document.getElementById('onboard-bead-title')?.value?.trim();
       if (!title) return { valid: false, error: 'Please enter a title for your issue' };
       return { valid: true };
     },
     action: async () => {
-      const title = document.getElementById('bead-title').value.trim();
-      const desc = document.getElementById('bead-desc')?.value?.trim() || '';
+      const title = document.getElementById('onboard-bead-title').value.trim();
+      const desc = document.getElementById('onboard-bead-desc')?.value?.trim() || '';
       const result = await api.createBead(title, { description: desc });
       if (result.success && result.bead_id) {
         window._onboardingBeadId = result.bead_id;
@@ -179,14 +179,14 @@ const ONBOARDING_STEPS = [
       <div class="onboard-form">
         <p class="onboard-explain">A <strong>convoy</strong> tracks progress across one or more issues. Think of it as your dashboard for a feature or task.</p>
         <div class="form-group">
-          <label for="convoy-name">Convoy Name</label>
-          <input type="text" id="convoy-name" placeholder="e.g., First Task, Bug Fix, New Feature" required>
+          <label for="onboard-convoy-name">Convoy Name</label>
+          <input type="text" id="onboard-convoy-name" placeholder="e.g., First Task, Bug Fix, New Feature" required>
         </div>
         <div class="form-group">
           <label>Issue to Track</label>
           <div class="selected-bead">
             <span class="material-icons">task_alt</span>
-            <code id="convoy-bead"></code>
+            <code id="onboard-convoy-bead"></code>
           </div>
         </div>
         <div class="created-convoy hidden">
@@ -196,18 +196,18 @@ const ONBOARDING_STEPS = [
       </div>
     `,
     onShow: () => {
-      const beadEl = document.getElementById('convoy-bead');
+      const beadEl = document.getElementById('onboard-convoy-bead');
       if (beadEl && window._onboardingBeadId) {
         beadEl.textContent = window._onboardingBeadId;
       }
     },
     validate: () => {
-      const name = document.getElementById('convoy-name')?.value?.trim();
+      const name = document.getElementById('onboard-convoy-name')?.value?.trim();
       if (!name) return { valid: false, error: 'Please enter a convoy name' };
       return { valid: true };
     },
     action: async () => {
-      const name = document.getElementById('convoy-name').value.trim();
+      const name = document.getElementById('onboard-convoy-name').value.trim();
       const beadId = window._onboardingBeadId;
       const result = await api.createConvoy(name, beadId ? [beadId] : []);
       if (result.success) {
@@ -228,12 +228,12 @@ const ONBOARDING_STEPS = [
           <label>Issue to Sling</label>
           <div class="selected-bead">
             <span class="material-icons">task_alt</span>
-            <code id="sling-bead"></code>
+            <code id="onboard-sling-bead"></code>
           </div>
         </div>
         <div class="form-group">
-          <label for="sling-target">Target Project</label>
-          <select id="sling-target" required>
+          <label for="onboard-sling-target">Target Project</label>
+          <select id="onboard-sling-target" required>
             <option value="">Select a rig...</option>
           </select>
         </div>
@@ -259,12 +259,12 @@ const ONBOARDING_STEPS = [
       </div>
     `,
     onShow: async () => {
-      const beadEl = document.getElementById('sling-bead');
+      const beadEl = document.getElementById('onboard-sling-bead');
       if (beadEl && window._onboardingBeadId) {
         beadEl.textContent = window._onboardingBeadId;
       }
       // Populate targets dropdown
-      const targetSelect = document.getElementById('sling-target');
+      const targetSelect = document.getElementById('onboard-sling-target');
       if (targetSelect) {
         try {
           const status = await api.getSetupStatus();
@@ -282,13 +282,13 @@ const ONBOARDING_STEPS = [
       }
     },
     validate: () => {
-      const target = document.getElementById('sling-target')?.value;
+      const target = document.getElementById('onboard-sling-target')?.value;
       if (!target) return { valid: false, error: 'Please select a target project' };
       return { valid: true };
     },
     action: async () => {
       const beadId = window._onboardingBeadId;
-      const target = document.getElementById('sling-target').value;
+      const target = document.getElementById('onboard-sling-target').value;
       if (!beadId) return { success: false, error: 'No bead to sling' };
       const result = await api.sling(beadId, target);
       if (result.success) {
