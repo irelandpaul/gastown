@@ -911,14 +911,50 @@ app.delete('/api/rigs/:name', async (req, res) => {
 
 // Run gt doctor
 app.get('/api/doctor', async (req, res) => {
-  const result = await executeGT(['doctor', '--json']);
+  // First try with --json flag
+  let result = await executeGT(['doctor', '--json']);
 
   if (result.success) {
     const data = parseJSON(result.data);
-    res.json(data || { raw: result.data });
-  } else {
-    res.status(500).json({ error: result.error });
+    if (data) {
+      return res.json(data);
+    }
+    // If JSON parse failed, return raw output
+    return res.json({ raw: result.data, checks: [] });
   }
+
+  // Fallback: try without --json flag
+  result = await executeGT(['doctor']);
+
+  if (result.success) {
+    // Parse text output into structured format
+    const lines = result.data.split('\n');
+    const checks = [];
+
+    for (const line of lines) {
+      // Parse lines like "✓ Mayor running" or "✗ Witness not running"
+      const passMatch = line.match(/^[✓✔]\s*(.+)$/);
+      const failMatch = line.match(/^[✗✘×]\s*(.+)$/);
+      const warnMatch = line.match(/^[⚠!]\s*(.+)$/);
+
+      if (passMatch) {
+        checks.push({ name: passMatch[1].trim(), status: 'pass', result: 'pass' });
+      } else if (failMatch) {
+        checks.push({ name: failMatch[1].trim(), status: 'fail', result: 'fail' });
+      } else if (warnMatch) {
+        checks.push({ name: warnMatch[1].trim(), status: 'warn', result: 'warn' });
+      }
+    }
+
+    return res.json({ checks, raw: result.data });
+  }
+
+  // Both failed - return error but with 200 to avoid breaking the UI
+  res.json({
+    checks: [],
+    raw: result.error || 'gt doctor command not available',
+    error: result.error
+  });
 });
 
 // ============= Service Controls (Mayor, Witness, Refinery) =============
@@ -1042,23 +1078,44 @@ app.get('/api/service/:name/status', async (req, res) => {
 
 // List all formulas
 app.get('/api/formulas', async (req, res) => {
-  const result = await executeGT(['formula', 'list', '--json']);
+  // Try gt formula list first
+  let result = await executeGT(['formula', 'list', '--json']);
 
   if (result.success) {
-    const formulas = parseJSON(result.data) || [];
-    res.json(formulas);
-  } else {
-    // Fallback: try bd formula list
-    try {
-      const { stdout } = await execAsync('bd formula list --json', {
-        cwd: GT_ROOT,
-        timeout: 10000
-      });
-      const formulas = JSON.parse(stdout || '[]');
-      res.json(formulas);
-    } catch {
-      res.json([]);
+    const formulas = parseJSON(result.data);
+    if (formulas) {
+      return res.json(formulas);
     }
+  }
+
+  // Try without --json flag
+  result = await executeGT(['formula', 'list']);
+  if (result.success && result.data) {
+    // Parse text output: "  formula-name - description"
+    const lines = result.data.split('\n');
+    const formulas = [];
+    for (const line of lines) {
+      const match = line.match(/^\s+(\S+)\s*(?:-\s*(.+))?$/);
+      if (match) {
+        formulas.push({ name: match[1], description: match[2] || '' });
+      }
+    }
+    if (formulas.length > 0) {
+      return res.json(formulas);
+    }
+  }
+
+  // Fallback: try bd formula list
+  try {
+    const { stdout } = await execAsync('bd formula list --json', {
+      cwd: GT_ROOT,
+      timeout: 10000
+    });
+    const formulas = JSON.parse(stdout || '[]');
+    return res.json(formulas);
+  } catch {
+    // Final fallback - empty array
+    return res.json([]);
   }
 });
 
