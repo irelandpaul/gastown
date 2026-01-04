@@ -5,6 +5,8 @@
  */
 
 import { AGENT_TYPES, STATUS_ICONS, getAgentType, getAgentConfig, formatAgentName } from '../shared/agent-types.js';
+import { api } from '../api.js';
+import { showToast } from './toast.js';
 
 /**
  * Render the sidebar with agent tree
@@ -43,6 +45,14 @@ export function renderSidebar(container, status) {
       ${renderAgentTree(agentsByRole)}
     </div>
 
+    <div class="sidebar-section">
+      <h3 class="sidebar-title">
+        <span class="material-icons">settings_applications</span>
+        Services
+      </h3>
+      ${renderServiceControls(agentsByRole)}
+    </div>
+
     ${hook ? renderHookSection(hook) : ''}
 
     <div class="sidebar-section">
@@ -53,6 +63,9 @@ export function renderSidebar(container, status) {
       ${renderStats(status)}
     </div>
   `;
+
+  // Add service control event listeners
+  setupServiceControls(container);
 }
 
 /**
@@ -175,6 +188,103 @@ function renderStats(status) {
       `).join('')}
     </div>
   `;
+}
+
+/**
+ * Render service control buttons
+ */
+function renderServiceControls(agentsByRole) {
+  const services = [
+    { name: 'mayor', label: 'Mayor', icon: 'account_balance', color: AGENT_TYPES.mayor.color },
+    { name: 'deacon', label: 'Deacon', icon: 'settings', color: AGENT_TYPES.deacon.color },
+    { name: 'witness', label: 'Witness', icon: 'visibility', color: AGENT_TYPES.witness.color },
+    { name: 'refinery', label: 'Refinery', icon: 'precision_manufacturing', color: AGENT_TYPES.refinery.color },
+  ];
+
+  return `
+    <div class="service-controls">
+      ${services.map(svc => {
+        const agents = agentsByRole[svc.name] || [];
+        const isRunning = agents.some(a => a.running);
+        const statusClass = isRunning ? 'running' : 'stopped';
+
+        return `
+          <div class="service-item" data-service="${svc.name}">
+            <div class="service-info">
+              <span class="material-icons service-icon" style="color: ${svc.color}">${svc.icon}</span>
+              <span class="service-name">${svc.label}</span>
+              <span class="service-status status-${statusClass}">${isRunning ? 'Running' : 'Stopped'}</span>
+            </div>
+            <div class="service-actions">
+              ${isRunning ? `
+                <button class="btn btn-icon btn-xs btn-danger-ghost" data-action="stop" data-service="${svc.name}" title="Stop ${svc.label}">
+                  <span class="material-icons">stop</span>
+                </button>
+                <button class="btn btn-icon btn-xs" data-action="restart" data-service="${svc.name}" title="Restart ${svc.label}">
+                  <span class="material-icons">refresh</span>
+                </button>
+              ` : `
+                <button class="btn btn-icon btn-xs btn-success-ghost" data-action="start" data-service="${svc.name}" title="Start ${svc.label}">
+                  <span class="material-icons">play_arrow</span>
+                </button>
+              `}
+            </div>
+          </div>
+        `;
+      }).join('')}
+    </div>
+  `;
+}
+
+/**
+ * Setup service control event listeners
+ */
+function setupServiceControls(container) {
+  container.querySelectorAll('.service-actions [data-action]').forEach(btn => {
+    btn.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      const action = btn.dataset.action;
+      const service = btn.dataset.service;
+      await handleServiceAction(action, service, btn);
+    });
+  });
+}
+
+/**
+ * Handle service start/stop/restart action
+ */
+async function handleServiceAction(action, service, btn) {
+  const originalIcon = btn.innerHTML;
+  btn.innerHTML = '<span class="material-icons spinning">sync</span>';
+  btn.disabled = true;
+
+  try {
+    let result;
+    switch (action) {
+      case 'start':
+        result = await api.startService(service);
+        break;
+      case 'stop':
+        result = await api.stopService(service);
+        break;
+      case 'restart':
+        result = await api.restartService(service);
+        break;
+    }
+
+    if (result.success) {
+      showToast(`${capitalize(service)} ${action}ed successfully`, 'success');
+      // Trigger status refresh
+      document.dispatchEvent(new CustomEvent('status:refresh'));
+    } else {
+      showToast(`Failed to ${action} ${service}: ${result.error}`, 'error');
+    }
+  } catch (err) {
+    showToast(`Error: ${err.message}`, 'error');
+  } finally {
+    btn.innerHTML = originalIcon;
+    btn.disabled = false;
+  }
 }
 
 // Utility functions

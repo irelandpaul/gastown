@@ -96,6 +96,16 @@ async function init() {
   document.addEventListener('onboarding:complete', () => {
     loadInitialData();
   });
+
+  // Listen for status refresh (from service controls)
+  document.addEventListener('status:refresh', () => {
+    loadInitialData();
+  });
+
+  // Listen for rigs refresh (from agent controls)
+  document.addEventListener('rigs:refresh', () => {
+    loadRigs();
+  });
 }
 
 // Navigation setup

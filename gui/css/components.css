@@ -4525,3 +4525,72 @@ select {
   max-height: 300px;
   overflow-y: auto;
 }
+
+/* === Service Controls === */
+.service-controls {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+}
+
+.service-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-sm);
+  background: var(--bg-secondary);
+  border-radius: var(--radius-sm);
+  transition: background 0.2s ease;
+}
+
+.service-item:hover {
+  background: var(--bg-tertiary);
+}
+
+.service-info {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
+.service-icon {
+  font-size: 18px;
+}
+
+.service-name {
+  font-weight: 500;
+  font-size: var(--text-sm);
+  color: var(--text-primary);
+}
+
+.service-status {
+  font-size: var(--text-xs);
+  padding: 2px 6px;
+  border-radius: var(--radius-sm);
+  font-weight: 500;
+}
+
+.service-status.status-running {
+  background: rgba(34, 197, 94, 0.15);
+  color: #22c55e;
+}
+
+.service-status.status-stopped {
+  background: rgba(239, 68, 68, 0.15);
+  color: #ef4444;
+}
+
+.service-actions {
+  display: flex;
+  gap: var(--space-xs);
+}
+
+.btn-icon.btn-xs {
+  width: 28px;
+  height: 28px;
+  padding: 0;
+}
+
+.btn-icon.btn-xs .material-icons {
+  font-size: 16px;
+}
