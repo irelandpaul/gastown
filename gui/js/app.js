@@ -45,6 +45,9 @@ async function init() {
   // Set up modals
   initModals();
 
+  // Set up convoy filters
+  setupConvoyFilters();
+
   // Set up keyboard shortcuts
   setupKeyboardShortcuts();
 
@@ -201,12 +204,45 @@ async function loadInitialData() {
   }
 }
 
+// Track convoy filter state
+let showAllConvoys = false;
+
 async function loadConvoys() {
   try {
-    const convoys = await api.getConvoys();
+    const params = showAllConvoys ? { all: 'true' } : {};
+    const convoys = await api.getConvoys(params);
     state.setConvoys(convoys);
   } catch (err) {
     console.error('[App] Failed to load convoys:', err);
+  }
+}
+
+// Setup convoy filter toggle
+function setupConvoyFilters() {
+  const activeBtn = document.getElementById('convoy-filter-active');
+  const allBtn = document.getElementById('convoy-filter-all');
+  const title = document.getElementById('convoy-view-title');
+
+  if (activeBtn && allBtn) {
+    activeBtn.addEventListener('click', () => {
+      showAllConvoys = false;
+      activeBtn.classList.remove('btn-ghost');
+      activeBtn.classList.add('btn-secondary', 'filter-active');
+      allBtn.classList.remove('btn-secondary', 'filter-active');
+      allBtn.classList.add('btn-ghost');
+      if (title) title.textContent = 'Active Convoys';
+      loadConvoys();
+    });
+
+    allBtn.addEventListener('click', () => {
+      showAllConvoys = true;
+      allBtn.classList.remove('btn-ghost');
+      allBtn.classList.add('btn-secondary', 'filter-active');
+      activeBtn.classList.remove('btn-secondary', 'filter-active');
+      activeBtn.classList.add('btn-ghost');
+      if (title) title.textContent = 'All Convoys';
+      loadConvoys();
+    });
   }
 }
 

@@ -78,7 +78,15 @@
         <!-- Convoy View -->
         <div class="view active" id="view-convoys">
           <div class="view-header">
-            <h1>Active Convoys</h1>
+            <h1 id="convoy-view-title">Active Convoys</h1>
+            <div class="view-filters">
+              <button class="btn btn-sm btn-secondary filter-active" id="convoy-filter-active" title="Show active convoys only">
+                <span class="material-icons">pending</span> Active
+              </button>
+              <button class="btn btn-sm btn-ghost" id="convoy-filter-all" title="Show all convoys including completed">
+                <span class="material-icons">history</span> All History
+              </button>
+            </div>
             <div class="view-actions">
               <button class="btn btn-secondary" id="new-bead-btn" data-modal-open="new-bead" data-tooltip="Create a new issue (bead) to track work">
                 <span class="material-icons">add_circle</span>

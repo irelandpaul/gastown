@@ -239,6 +239,22 @@ body {
   gap: var(--space-sm);
 }
 
+.view-filters {
+  display: flex;
+  gap: var(--space-xs);
+  margin-left: var(--space-md);
+}
+
+.view-filters .btn {
+  font-size: var(--text-xs);
+  padding: var(--space-xs) var(--space-sm);
+}
+
+.view-filters .filter-active {
+  background: var(--accent-primary);
+  color: white;
+}
+
 /* === Activity Feed === */
 .activity-feed {
   width: var(--feed-width);
