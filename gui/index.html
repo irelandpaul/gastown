@@ -26,7 +26,11 @@
       </div>
       <div class="header-center">
         <div class="nav-tabs">
-          <button class="nav-tab active" data-view="convoys" data-tooltip="Groups of related work items. Track progress across multiple tasks.">
+          <button class="nav-tab active" data-view="dashboard" data-tooltip="System overview - health, metrics, and quick actions.">
+            <span class="material-icons">dashboard</span>
+            Overview
+          </button>
+          <button class="nav-tab" data-view="convoys" data-tooltip="Groups of related work items. Track progress across multiple tasks.">
             <span class="material-icons">local_shipping</span>
             Convoys
           </button>
@@ -99,8 +103,24 @@
 
       <!-- Primary Content -->
       <section class="content">
+        <!-- Dashboard View -->
+        <div class="view active" id="view-dashboard">
+          <div class="view-header">
+            <h1>System Overview</h1>
+            <div class="view-actions">
+              <button class="btn btn-secondary" id="dashboard-refresh">
+                <span class="material-icons">refresh</span>
+                Refresh
+              </button>
+            </div>
+          </div>
+          <div class="dashboard-container" id="dashboard-container">
+            <!-- Populated by JS -->
+          </div>
+        </div>
+
         <!-- Convoy View -->
-        <div class="view active" id="view-convoys">
+        <div class="view" id="view-convoys">
           <div class="view-header">
             <h1 id="convoy-view-title">Active Convoys</h1>
             <div class="view-filters">

@@ -18,6 +18,7 @@ import { initPRList, loadPRs } from './components/pr-list.js';
 import { initFormulaList, loadFormulas } from './components/formula-list.js';
 import { initIssueList, loadIssues } from './components/issue-list.js';
 import { initHealthCheck, loadHealthCheck } from './components/health-check.js';
+import { initDashboard, loadDashboard } from './components/dashboard.js';
 import { showToast } from './components/toast.js';
 import { initModals } from './components/modals.js';
 import { startTutorial, shouldShowTutorial } from './components/tutorial.js';
@@ -65,6 +66,9 @@ async function init() {
   // Set up Health check
   initHealthCheck();
 
+  // Set up Dashboard
+  initDashboard();
+
   // Set up convoy filters
   setupConvoyFilters();
 
@@ -108,6 +112,11 @@ async function init() {
   // Listen for status refresh (from service controls)
   document.addEventListener('status:refresh', () => {
     loadInitialData();
+  });
+
+  // Listen for dashboard refresh
+  document.addEventListener('dashboard:refresh', () => {
+    loadDashboard();
   });
 
   // Listen for rigs refresh (from agent controls)
@@ -154,7 +163,9 @@ function switchView(viewId) {
   });
 
   // Load view-specific data
-  if (viewId === 'mail') {
+  if (viewId === 'dashboard') {
+    loadDashboard();
+  } else if (viewId === 'mail') {
     loadMail();
   } else if (viewId === 'agents') {
     loadAgents();
@@ -259,6 +270,9 @@ async function loadInitialData() {
 
     // Load convoys
     await loadConvoys();
+
+    // Load dashboard (default view)
+    await loadDashboard();
 
     elements.statusMessage.textContent = 'Ready';
   } catch (err) {
