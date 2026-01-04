@@ -151,6 +151,19 @@ export const api = {
     return this.get(`/api/polecat/${encodeURIComponent(rig)}/${encodeURIComponent(name)}/output`);
   },
 
+  // === Agent Controls ===
+  startAgent(rig, name) {
+    return this.post(`/api/polecat/${encodeURIComponent(rig)}/${encodeURIComponent(name)}/start`);
+  },
+
+  stopAgent(rig, name) {
+    return this.post(`/api/polecat/${encodeURIComponent(rig)}/${encodeURIComponent(name)}/stop`);
+  },
+
+  restartAgent(rig, name) {
+    return this.post(`/api/polecat/${encodeURIComponent(rig)}/${encodeURIComponent(name)}/restart`);
+  },
+
   // === GitHub Integration ===
   getGitHubPRs(state = 'open') {
     return this.get(`/api/github/prs?state=${encodeURIComponent(state)}`);

@@ -488,6 +488,86 @@ app.get('/api/polecat/:rig/:name/output', async (req, res) => {
   }
 });
 
+// Start a polecat/agent
+app.post('/api/polecat/:rig/:name/start', async (req, res) => {
+  const { rig, name } = req.params;
+  const agentPath = `${rig}/${name}`;
+
+  console.log(`[Agent] Starting ${agentPath}...`);
+
+  try {
+    // Use gt polecat spawn to start the agent
+    const result = await executeGT(['polecat', 'spawn', agentPath], { timeout: 30000 });
+
+    if (result.success) {
+      broadcast({ type: 'agent_started', data: { rig, name, agentPath } });
+      res.json({ success: true, message: `Started ${agentPath}`, raw: result.data });
+    } else {
+      res.status(500).json({ success: false, error: result.error });
+    }
+  } catch (err) {
+    console.error(`[Agent] Failed to start ${agentPath}:`, err);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// Stop a polecat/agent
+app.post('/api/polecat/:rig/:name/stop', async (req, res) => {
+  const { rig, name } = req.params;
+  const sessionName = `gt-${rig}-${name}`;
+
+  console.log(`[Agent] Stopping ${rig}/${name}...`);
+
+  try {
+    // Kill the tmux session
+    await execAsync(`tmux kill-session -t ${sessionName} 2>/dev/null`);
+    broadcast({ type: 'agent_stopped', data: { rig, name, session: sessionName } });
+    res.json({ success: true, message: `Stopped ${rig}/${name}` });
+  } catch (err) {
+    // Session might not exist, which is fine
+    if (err.message.includes("can't find session")) {
+      res.json({ success: true, message: `${rig}/${name} was not running` });
+    } else {
+      console.error(`[Agent] Failed to stop ${rig}/${name}:`, err);
+      res.status(500).json({ success: false, error: err.message });
+    }
+  }
+});
+
+// Restart a polecat/agent (stop then start)
+app.post('/api/polecat/:rig/:name/restart', async (req, res) => {
+  const { rig, name } = req.params;
+  const agentPath = `${rig}/${name}`;
+  const sessionName = `gt-${rig}-${name}`;
+
+  console.log(`[Agent] Restarting ${agentPath}...`);
+
+  try {
+    // First try to kill existing session (ignore errors)
+    try {
+      await execAsync(`tmux kill-session -t ${sessionName} 2>/dev/null`);
+    } catch {
+      // Ignore - session might not exist
+    }
+
+    // Wait a moment for cleanup
+    await new Promise(resolve => setTimeout(resolve, 500));
+
+    // Start the agent
+    const result = await executeGT(['polecat', 'spawn', agentPath], { timeout: 30000 });
+
+    if (result.success) {
+      broadcast({ type: 'agent_restarted', data: { rig, name, agentPath } });
+      res.json({ success: true, message: `Restarted ${agentPath}`, raw: result.data });
+    } else {
+      res.status(500).json({ success: false, error: result.error });
+    }
+  } catch (err) {
+    console.error(`[Agent] Failed to restart ${agentPath}:`, err);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 // Get hook status
 app.get('/api/hook', async (req, res) => {
   const result = await executeGT(['hook', 'status', '--json']);

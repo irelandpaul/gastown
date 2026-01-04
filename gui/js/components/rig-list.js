@@ -5,6 +5,8 @@
  */
 
 import { AGENT_TYPES, STATUS_ICONS, STATUS_COLORS, getAgentConfig } from '../shared/agent-types.js';
+import { api } from '../api.js';
+import { showToast } from './toast.js';
 
 /**
  * Render the rig list
@@ -45,6 +47,36 @@ export function renderRigList(container, rigs) {
         e.stopPropagation();
         const agentId = btn.dataset.agentId;
         showAgentPeek(agentId);
+      });
+    });
+
+    // Start agent
+    card.querySelectorAll('[data-action="start"]').forEach(btn => {
+      btn.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        const rig = btn.dataset.rig;
+        const name = btn.dataset.name;
+        await handleAgentStart(rig, name, btn);
+      });
+    });
+
+    // Stop agent
+    card.querySelectorAll('[data-action="stop"]').forEach(btn => {
+      btn.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        const rig = btn.dataset.rig;
+        const name = btn.dataset.name;
+        await handleAgentStop(rig, name, btn);
+      });
+    });
+
+    // Restart agent
+    card.querySelectorAll('[data-action="restart"]').forEach(btn => {
+      btn.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        const rig = btn.dataset.rig;
+        const name = btn.dataset.name;
+        await handleAgentRestart(rig, name, btn);
       });
     });
   });
@@ -149,7 +181,7 @@ function renderRigAgent(agent, rigName) {
   const statusIcon = STATUS_ICONS[status];
 
   return `
-    <div class="rig-agent" data-agent-id="${agent.address}">
+    <div class="rig-agent" data-agent-id="${agent.address}" data-rig="${rigName}" data-name="${agent.name}">
       <span class="agent-icon material-icons" style="color: ${config.color}">${config.icon}</span>
       <span class="agent-name">${escapeHtml(agent.name)}</span>
       <span class="agent-role" style="color: ${config.color}">${config.label}</span>
@@ -157,9 +189,23 @@ function renderRigAgent(agent, rigName) {
         <span class="material-icons" style="color: ${statusColor}">${statusIcon}</span>
       </span>
       ${agent.has_work ? '<span class="agent-work-badge" title="Has work hooked">⚡</span>' : ''}
-      <button class="btn btn-icon btn-xs" data-action="peek" data-agent-id="${agent.address}" title="Peek at output">
-        <span class="material-icons">visibility</span>
-      </button>
+      <div class="agent-controls">
+        ${agent.running ? `
+          <button class="btn btn-icon btn-xs btn-danger-ghost" data-action="stop" data-rig="${rigName}" data-name="${agent.name}" title="Stop agent">
+            <span class="material-icons">stop</span>
+          </button>
+          <button class="btn btn-icon btn-xs" data-action="restart" data-rig="${rigName}" data-name="${agent.name}" title="Restart agent">
+            <span class="material-icons">refresh</span>
+          </button>
+        ` : `
+          <button class="btn btn-icon btn-xs btn-success-ghost" data-action="start" data-rig="${rigName}" data-name="${agent.name}" title="Start agent">
+            <span class="material-icons">play_arrow</span>
+          </button>
+        `}
+        <button class="btn btn-icon btn-xs" data-action="peek" data-agent-id="${agent.address}" title="Peek at output">
+          <span class="material-icons">visibility</span>
+        </button>
+      </div>
     </div>
   `;
 }
@@ -179,6 +225,81 @@ function extractRepoName(url) {
 function showAgentPeek(agentId) {
   const event = new CustomEvent('agent:peek', { detail: { agentId } });
   document.dispatchEvent(event);
+}
+
+/**
+ * Handle agent start
+ */
+async function handleAgentStart(rig, name, btn) {
+  const originalIcon = btn.innerHTML;
+  btn.innerHTML = '<span class="material-icons spinning">sync</span>';
+  btn.disabled = true;
+
+  try {
+    const result = await api.startAgent(rig, name);
+    if (result.success) {
+      showToast(`Started ${rig}/${name}`, 'success');
+      // Trigger refresh
+      document.dispatchEvent(new CustomEvent('rigs:refresh'));
+    } else {
+      showToast(`Failed to start: ${result.error}`, 'error');
+    }
+  } catch (err) {
+    showToast(`Error: ${err.message}`, 'error');
+  } finally {
+    btn.innerHTML = originalIcon;
+    btn.disabled = false;
+  }
+}
+
+/**
+ * Handle agent stop
+ */
+async function handleAgentStop(rig, name, btn) {
+  const originalIcon = btn.innerHTML;
+  btn.innerHTML = '<span class="material-icons spinning">sync</span>';
+  btn.disabled = true;
+
+  try {
+    const result = await api.stopAgent(rig, name);
+    if (result.success) {
+      showToast(`Stopped ${rig}/${name}`, 'success');
+      // Trigger refresh
+      document.dispatchEvent(new CustomEvent('rigs:refresh'));
+    } else {
+      showToast(`Failed to stop: ${result.error}`, 'error');
+    }
+  } catch (err) {
+    showToast(`Error: ${err.message}`, 'error');
+  } finally {
+    btn.innerHTML = originalIcon;
+    btn.disabled = false;
+  }
+}
+
+/**
+ * Handle agent restart
+ */
+async function handleAgentRestart(rig, name, btn) {
+  const originalIcon = btn.innerHTML;
+  btn.innerHTML = '<span class="material-icons spinning">sync</span>';
+  btn.disabled = true;
+
+  try {
+    const result = await api.restartAgent(rig, name);
+    if (result.success) {
+      showToast(`Restarted ${rig}/${name}`, 'success');
+      // Trigger refresh
+      document.dispatchEvent(new CustomEvent('rigs:refresh'));
+    } else {
+      showToast(`Failed to restart: ${result.error}`, 'error');
+    }
+  } catch (err) {
+    showToast(`Error: ${err.message}`, 'error');
+  } finally {
+    btn.innerHTML = originalIcon;
+    btn.disabled = false;
+  }
 }
 
 // Utility

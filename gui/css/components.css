@@ -4329,3 +4329,70 @@ select {
   margin-top: var(--space-xs);
   font-size: 0.75rem;
 }
+
+/* === Agent Controls === */
+
+.agent-controls {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+  margin-left: auto;
+}
+
+.btn-success-ghost {
+  color: #22c55e;
+}
+
+.btn-success-ghost:hover {
+  background: rgba(34, 197, 94, 0.15);
+  color: #22c55e;
+}
+
+.btn-danger-ghost {
+  color: #ef4444;
+}
+
+.btn-danger-ghost:hover {
+  background: rgba(239, 68, 68, 0.15);
+  color: #ef4444;
+}
+
+.spinning {
+  animation: spin 1s linear infinite;
+}
+
+.rig-agent {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: var(--space-xs) var(--space-sm);
+  border-radius: var(--radius-sm);
+  transition: background 0.2s ease;
+}
+
+.rig-agent:hover {
+  background: var(--surface-lighter);
+}
+
+.rig-agent .agent-icon {
+  font-size: 18px;
+}
+
+.rig-agent .agent-name {
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.rig-agent .agent-role {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.rig-agent .agent-status .material-icons {
+  font-size: 14px;
+}
+
+.rig-agent .agent-work-badge {
+  font-size: 14px;
+}
