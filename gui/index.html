@@ -59,6 +59,10 @@
             Mail
             <span class="badge hidden" id="mail-badge">0</span>
           </button>
+          <button class="nav-tab" data-view="health" data-tooltip="System health check - verify Gas Town configuration.">
+            <span class="material-icons">health_and_safety</span>
+            Health
+          </button>
         </div>
       </div>
       <div class="header-right">
@@ -269,6 +273,22 @@
             </div>
           </div>
           <div class="mail-list" id="mail-list">
+            <!-- Populated by JS -->
+          </div>
+        </div>
+
+        <!-- Health Check View -->
+        <div class="view" id="view-health">
+          <div class="view-header">
+            <h1>System Health</h1>
+            <div class="view-actions">
+              <button class="btn btn-secondary" id="health-refresh">
+                <span class="material-icons">refresh</span>
+                Run Doctor
+              </button>
+            </div>
+          </div>
+          <div class="health-check-container" id="health-check-container">
             <!-- Populated by JS -->
           </div>
         </div>

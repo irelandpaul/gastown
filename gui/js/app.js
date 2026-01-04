@@ -17,6 +17,7 @@ import { renderRigList } from './components/rig-list.js';
 import { initPRList, loadPRs } from './components/pr-list.js';
 import { initFormulaList, loadFormulas } from './components/formula-list.js';
 import { initIssueList, loadIssues } from './components/issue-list.js';
+import { initHealthCheck, loadHealthCheck } from './components/health-check.js';
 import { showToast } from './components/toast.js';
 import { initModals } from './components/modals.js';
 import { startTutorial, shouldShowTutorial } from './components/tutorial.js';
@@ -60,6 +61,9 @@ async function init() {
 
   // Set up Issue list
   initIssueList();
+
+  // Set up Health check
+  initHealthCheck();
 
   // Set up convoy filters
   setupConvoyFilters();
@@ -164,6 +168,8 @@ function switchView(viewId) {
     loadFormulas();
   } else if (viewId === 'issues') {
     loadIssues();
+  } else if (viewId === 'health') {
+    loadHealthCheck();
   }
 }
 
