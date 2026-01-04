@@ -175,7 +175,8 @@ app.post('/api/sling', async (req, res) => {
   if (quality) cmdArgs.push(`--quality=${quality}`);
   if (slingArgs) cmdArgs.push('--args', slingArgs);
 
-  const result = await executeGT(cmdArgs);
+  // Sling spawns a polecat which can take 60+ seconds
+  const result = await executeGT(cmdArgs, { timeout: 90000 });
   if (result.success) {
     // Parse output - may or may not be JSON
     const jsonData = parseJSON(result.data);
