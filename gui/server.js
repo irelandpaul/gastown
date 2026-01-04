@@ -619,6 +619,97 @@ app.get('/api/doctor', async (req, res) => {
   }
 });
 
+// ============= GitHub Integration =============
+
+// Extract GitHub repo from git_url
+function extractGitHubRepo(gitUrl) {
+  if (!gitUrl) return null;
+  // Handle: https://github.com/owner/repo, git@github.com:owner/repo, etc.
+  const match = gitUrl.match(/github\.com[:/]([^/]+\/[^/.\s]+)/);
+  if (match) {
+    // Remove .git suffix if present
+    return match[1].replace(/\.git$/, '');
+  }
+  return null;
+}
+
+// Get all GitHub PRs across rigs
+app.get('/api/github/prs', async (req, res) => {
+  const state = req.query.state || 'open'; // open, closed, all
+  const allPRs = [];
+
+  try {
+    // Get status to find rigs and their git_urls
+    const result = await executeGT(['status', '--json']);
+    if (!result.success) {
+      return res.status(500).json({ error: 'Failed to get status' });
+    }
+
+    const data = parseJSON(result.data) || {};
+    const rigs = data.rigs || [];
+
+    // Read config.json for each rig to get git_url
+    for (const rig of rigs) {
+      try {
+        const rigConfigPath = path.join(GT_ROOT, rig.name, 'config.json');
+        if (fs.existsSync(rigConfigPath)) {
+          const rigConfig = JSON.parse(fs.readFileSync(rigConfigPath, 'utf8'));
+          const repo = extractGitHubRepo(rigConfig.git_url);
+
+          if (repo) {
+            // Fetch PRs for this repo using gh CLI
+            try {
+              const { stdout } = await execAsync(
+                `gh pr list --repo ${repo} --state ${state} --json number,title,author,createdAt,updatedAt,url,headRefName,state,isDraft,reviewDecision --limit 20`,
+                { timeout: 15000 }
+              );
+
+              const prs = JSON.parse(stdout || '[]');
+              prs.forEach(pr => {
+                allPRs.push({
+                  ...pr,
+                  rig: rig.name,
+                  repo: repo
+                });
+              });
+            } catch (ghErr) {
+              console.error(`[GitHub] Failed to fetch PRs for ${repo}:`, ghErr.message);
+            }
+          }
+        }
+      } catch (e) {
+        console.error(`[GitHub] Error reading rig config for ${rig.name}:`, e.message);
+      }
+    }
+
+    // Sort by updated date descending
+    allPRs.sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
+
+    res.json(allPRs);
+  } catch (err) {
+    console.error('[GitHub] Error fetching PRs:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Get PR details
+app.get('/api/github/pr/:repo/:number', async (req, res) => {
+  const { repo, number } = req.params;
+
+  try {
+    const { stdout } = await execAsync(
+      `gh pr view ${number} --repo ${repo} --json number,title,author,body,createdAt,updatedAt,url,headRefName,baseRefName,state,isDraft,additions,deletions,commits,files,reviews,comments`,
+      { timeout: 15000 }
+    );
+
+    const pr = JSON.parse(stdout);
+    res.json(pr);
+  } catch (err) {
+    console.error(`[GitHub] Error fetching PR #${number}:`, err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // ============= WebSocket for Real-time Events =============
 
 // Start activity stream

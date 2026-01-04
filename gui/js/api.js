@@ -150,6 +150,15 @@ export const api = {
   getPeekOutput(rig, name) {
     return this.get(`/api/polecat/${encodeURIComponent(rig)}/${encodeURIComponent(name)}/output`);
   },
+
+  // === GitHub Integration ===
+  getGitHubPRs(state = 'open') {
+    return this.get(`/api/github/prs?state=${encodeURIComponent(state)}`);
+  },
+
+  getGitHubPR(repo, number) {
+    return this.get(`/api/github/pr/${encodeURIComponent(repo)}/${number}`);
+  },
 };
 
 // WebSocket Client

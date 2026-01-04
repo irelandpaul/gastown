@@ -42,6 +42,10 @@
             <span class="material-icons">folder_special</span>
             Rigs
           </button>
+          <button class="nav-tab" data-view="prs" data-tooltip="GitHub Pull Requests across all connected repositories.">
+            <span class="material-icons">merge_type</span>
+            PRs
+          </button>
           <button class="nav-tab" data-view="mail" data-tooltip="Messages between agents and the human overseer.">
             <span class="material-icons">mail</span>
             Mail
@@ -172,6 +176,26 @@
             </div>
           </div>
           <div class="rig-list" id="rig-list">
+            <!-- Populated by JS -->
+          </div>
+        </div>
+
+        <!-- Pull Requests View -->
+        <div class="view" id="view-prs">
+          <div class="view-header">
+            <h1>Pull Requests</h1>
+            <div class="view-actions">
+              <div class="filter-group">
+                <button class="pr-state-tab active" data-state="open">Open</button>
+                <button class="pr-state-tab" data-state="closed">Closed</button>
+                <button class="pr-state-tab" data-state="all">All</button>
+              </div>
+              <button class="btn btn-sm btn-icon" id="pr-refresh" title="Refresh">
+                <span class="material-icons">refresh</span>
+              </button>
+            </div>
+          </div>
+          <div class="pr-list" id="pr-list-container">
             <!-- Populated by JS -->
           </div>
         </div>
