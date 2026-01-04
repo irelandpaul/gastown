@@ -503,50 +503,161 @@ function setupKeyboardShortcuts() {
     // Ignore if in input/textarea
     if (e.target.matches('input, textarea, select')) return;
 
-    switch (e.key) {
-      case '?':
-        showKeyboardHelp();
-        break;
-      case '1':
-        switchView('convoys');
-        break;
-      case '2':
-        switchView('agents');
-        break;
-      case '3':
-        switchView('mail');
-        break;
-      case 'n':
-        if (e.ctrlKey || e.metaKey) {
+    // Simple key shortcuts (no modifier)
+    if (!e.ctrlKey && !e.metaKey && !e.altKey) {
+      switch (e.key) {
+        case '?':
           e.preventDefault();
-          document.getElementById('new-convoy-btn').click();
-        }
-        break;
-      case 'r':
-        if (e.ctrlKey || e.metaKey) {
+          showKeyboardHelp();
+          return;
+        case '1':
+        case 'd':
+          switchView('dashboard');
+          return;
+        case '2':
+        case 'c':
+          switchView('convoys');
+          return;
+        case '3':
+        case 'a':
+          switchView('agents');
+          return;
+        case '4':
+        case 'm':
+          switchView('mail');
+          return;
+        case '5':
+        case 'w':
+          switchView('work');
+          return;
+        case '6':
+          switchView('rigs');
+          return;
+        case '7':
+          switchView('prs');
+          return;
+        case '8':
+          switchView('formulas');
+          return;
+        case '9':
+          switchView('issues');
+          return;
+        case '0':
+        case 'h':
+          switchView('health');
+          return;
+        case '/':
+          e.preventDefault();
+          // Focus search if available
+          const searchInput = document.querySelector('.search-input');
+          if (searchInput) searchInput.focus();
+          return;
+        case 'Escape':
+          closeAllModals();
+          return;
+      }
+    }
+
+    // Ctrl/Cmd shortcuts
+    if (e.ctrlKey || e.metaKey) {
+      switch (e.key) {
+        case 'n':
+          e.preventDefault();
+          document.getElementById('new-convoy-btn')?.click();
+          break;
+        case 'r':
           e.preventDefault();
           loadInitialData();
-        }
-        break;
-      case 'Escape':
-        closeAllModals();
-        break;
+          showToast('Refreshing...', 'info', 1000);
+          break;
+        case 's':
+          e.preventDefault();
+          // Trigger sling modal
+          document.getElementById('sling-btn')?.click();
+          break;
+        case 'k':
+          e.preventDefault();
+          // Quick command palette (future)
+          showKeyboardHelp();
+          break;
+      }
+    }
+
+    // Alt shortcuts for quick actions
+    if (e.altKey && !e.ctrlKey && !e.metaKey) {
+      switch (e.key) {
+        case 'n':
+          e.preventDefault();
+          // New bead
+          document.querySelector('[data-modal-open="new-bead"]')?.click();
+          break;
+        case 'c':
+          e.preventDefault();
+          // New convoy
+          document.getElementById('new-convoy-btn')?.click();
+          break;
+        case 'm':
+          e.preventDefault();
+          // Compose mail
+          document.querySelector('[data-modal-open="mail-compose"]')?.click();
+          break;
+      }
     }
   });
 }
 
 function showKeyboardHelp() {
-  // Open help modal instead of toast
+  // Try to open help modal
   const helpBtn = document.getElementById('help-btn');
   if (helpBtn) {
     helpBtn.click();
   } else {
-    showToast(`
-      Keyboard Shortcuts:
-      1 - Convoys | 2 - Agents | 3 - Mail
-      Ctrl+N - New Convoy | Ctrl+R - Refresh
-      Esc - Close modal
-    `, 'info', 5000);
+    // Create a temporary keyboard help overlay
+    const overlay = document.createElement('div');
+    overlay.className = 'keyboard-help-overlay';
+    overlay.innerHTML = `
+      <div class="keyboard-help-modal">
+        <div class="keyboard-help-header">
+          <h2><span class="material-icons">keyboard</span> Keyboard Shortcuts</h2>
+          <button class="btn btn-icon" onclick="this.closest('.keyboard-help-overlay').remove()">
+            <span class="material-icons">close</span>
+          </button>
+        </div>
+        <div class="keyboard-help-content">
+          <div class="shortcut-group">
+            <h3>Navigation</h3>
+            <div class="shortcut-row"><kbd>1</kbd> or <kbd>D</kbd> <span>Dashboard</span></div>
+            <div class="shortcut-row"><kbd>2</kbd> or <kbd>C</kbd> <span>Convoys</span></div>
+            <div class="shortcut-row"><kbd>3</kbd> or <kbd>A</kbd> <span>Agents</span></div>
+            <div class="shortcut-row"><kbd>4</kbd> or <kbd>M</kbd> <span>Mail</span></div>
+            <div class="shortcut-row"><kbd>5</kbd> or <kbd>W</kbd> <span>Work</span></div>
+            <div class="shortcut-row"><kbd>6</kbd> <span>Rigs</span></div>
+            <div class="shortcut-row"><kbd>7</kbd> <span>Pull Requests</span></div>
+            <div class="shortcut-row"><kbd>8</kbd> <span>Formulas</span></div>
+            <div class="shortcut-row"><kbd>9</kbd> <span>Issues</span></div>
+            <div class="shortcut-row"><kbd>0</kbd> or <kbd>H</kbd> <span>Health</span></div>
+          </div>
+          <div class="shortcut-group">
+            <h3>Actions</h3>
+            <div class="shortcut-row"><kbd>Ctrl</kbd>+<kbd>N</kbd> <span>New Convoy</span></div>
+            <div class="shortcut-row"><kbd>Ctrl</kbd>+<kbd>R</kbd> <span>Refresh Data</span></div>
+            <div class="shortcut-row"><kbd>Ctrl</kbd>+<kbd>S</kbd> <span>Sling Work</span></div>
+            <div class="shortcut-row"><kbd>Alt</kbd>+<kbd>N</kbd> <span>New Bead</span></div>
+            <div class="shortcut-row"><kbd>Alt</kbd>+<kbd>M</kbd> <span>Compose Mail</span></div>
+            <div class="shortcut-row"><kbd>/</kbd> <span>Focus Search</span></div>
+            <div class="shortcut-row"><kbd>Esc</kbd> <span>Close Modal</span></div>
+            <div class="shortcut-row"><kbd>?</kbd> <span>Show This Help</span></div>
+          </div>
+        </div>
+        <div class="keyboard-help-footer">
+          Press <kbd>Esc</kbd> or click outside to close
+        </div>
+      </div>
+    `;
+    overlay.addEventListener('click', (e) => {
+      if (e.target === overlay) overlay.remove();
+    });
+    document.body.appendChild(overlay);
   }
 }
 
@@ -554,6 +665,8 @@ function closeAllModals() {
   const overlay = document.getElementById('modal-overlay');
   overlay.classList.add('hidden');
   document.querySelectorAll('.modal').forEach(m => m.classList.add('hidden'));
+  // Also close keyboard help overlay
+  document.querySelector('.keyboard-help-overlay')?.remove();
 }
 
 // Show mail detail modal
