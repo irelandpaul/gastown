@@ -409,7 +409,7 @@ function subscribeToState() {
 
   // Mail updates
   subscribe('mail', (mail) => {
-    renderMailList(elements.mailList, mail);
+    renderMailList(elements.mailList, mail, { isAllMail: mailFilter === 'all' });
 
     // Update badge
     const unread = mail.filter(m => !m.read).length;

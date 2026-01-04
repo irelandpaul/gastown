@@ -11,11 +11,101 @@ const PRIORITY_CONFIG = {
   low: { icon: 'mail_outline', class: 'priority-low' },
 };
 
+// Agent type detection and colors
+const AGENT_TYPES = {
+  mayor: { color: '#a855f7', icon: 'account_balance', label: 'Mayor' },
+  witness: { color: '#3b82f6', icon: 'visibility', label: 'Witness' },
+  deacon: { color: '#f59e0b', icon: 'gavel', label: 'Deacon' },
+  refinery: { color: '#ef4444', icon: 'precision_manufacturing', label: 'Refinery' },
+  polecat: { color: '#22c55e', icon: 'smart_toy', label: 'Polecat' },
+  crew: { color: '#06b6d4', icon: 'groups', label: 'Crew' },
+  human: { color: '#ec4899', icon: 'person', label: 'Human' },
+  system: { color: '#6b7280', icon: 'settings', label: 'System' },
+};
+
+/**
+ * Detect agent type from agent path
+ */
+function getAgentType(agentPath) {
+  if (!agentPath) return 'system';
+  const lower = agentPath.toLowerCase();
+
+  if (lower.includes('mayor')) return 'mayor';
+  if (lower.includes('witness')) return 'witness';
+  if (lower.includes('deacon')) return 'deacon';
+  if (lower.includes('refinery')) return 'refinery';
+  if (lower.includes('polecats/') || lower.includes('polecat')) return 'polecat';
+  if (lower.includes('crew/')) return 'crew';
+  if (lower === 'human' || lower === 'human/') return 'human';
+
+  // Check if it's a polecat by name pattern (rig/name without special folders)
+  const parts = agentPath.split('/');
+  if (parts.length === 2 && !['mayor', 'witness', 'deacon', 'refinery'].includes(parts[1])) {
+    return 'polecat'; // Likely a polecat like "rig/slit"
+  }
+
+  return 'system';
+}
+
+/**
+ * Get unique agents from mail list for filtering
+ */
+function getUniqueAgents(mail) {
+  const agents = new Map();
+  mail.forEach(m => {
+    if (m.from) {
+      const type = getAgentType(m.from);
+      const name = formatAgentShort(m.from);
+      agents.set(m.from, { path: m.from, name, type });
+    }
+    if (m.to) {
+      const type = getAgentType(m.to);
+      const name = formatAgentShort(m.to);
+      agents.set(m.to, { path: m.to, name, type });
+    }
+  });
+  return Array.from(agents.values()).sort((a, b) => a.name.localeCompare(b.name));
+}
+
+/**
+ * Get unique rigs from mail list
+ */
+function getUniqueRigs(mail) {
+  const rigs = new Set();
+  mail.forEach(m => {
+    if (m.from) {
+      const rig = m.from.split('/')[0];
+      if (rig && rig !== 'mayor' && rig !== 'human') rigs.add(rig);
+    }
+    if (m.to) {
+      const rig = m.to.split('/')[0];
+      if (rig && rig !== 'mayor' && rig !== 'human') rigs.add(rig);
+    }
+  });
+  return Array.from(rigs).sort();
+}
+
+/**
+ * Short format for agent name
+ */
+function formatAgentShort(name) {
+  if (!name) return 'unknown';
+  const parts = name.split('/');
+  return parts[parts.length - 1] || parts[0];
+}
+
 /**
  * Render the mail list
  * @param {HTMLElement} container - The mail list container
  * @param {Array} mail - Array of mail objects
  */
+// Current filter state (module-level)
+let currentFilters = {
+  agentType: 'all',
+  rig: 'all',
+  search: '',
+};
+
 export function renderMailList(container, mail, options = {}) {
   if (!container) return;
 
@@ -32,15 +122,57 @@ export function renderMailList(container, mail, options = {}) {
     return;
   }
 
+  // Build filter UI for all-mail view
+  const filterHtml = isAllMail ? buildFilterUI(mail) : '';
+
+  // Apply filters
+  let filtered = [...mail];
+  if (isAllMail) {
+    if (currentFilters.agentType !== 'all') {
+      filtered = filtered.filter(m =>
+        getAgentType(m.from) === currentFilters.agentType ||
+        getAgentType(m.to) === currentFilters.agentType
+      );
+    }
+    if (currentFilters.rig !== 'all') {
+      filtered = filtered.filter(m =>
+        m.from?.startsWith(currentFilters.rig) ||
+        m.to?.startsWith(currentFilters.rig)
+      );
+    }
+    if (currentFilters.search) {
+      const searchLower = currentFilters.search.toLowerCase();
+      filtered = filtered.filter(m =>
+        m.subject?.toLowerCase().includes(searchLower) ||
+        m.from?.toLowerCase().includes(searchLower) ||
+        m.to?.toLowerCase().includes(searchLower) ||
+        m.body?.toLowerCase().includes(searchLower)
+      );
+    }
+  }
+
   // Sort by date (newest first), then by read status
-  const sorted = [...mail].sort((a, b) => {
+  const sorted = filtered.sort((a, b) => {
     // Unread first
     if (a.read !== b.read) return a.read ? 1 : -1;
     // Then by date
     return new Date(b.timestamp || 0) - new Date(a.timestamp || 0);
   });
 
-  container.innerHTML = sorted.map((item, index) => renderMailItem(item, index)).join('');
+  // Render
+  const itemsHtml = sorted.length > 0
+    ? sorted.map((item, index) => renderMailItem(item, index)).join('')
+    : `<div class="empty-state small">
+        <span class="material-icons">filter_list_off</span>
+        <p>No mail matches your filters</p>
+      </div>`;
+
+  container.innerHTML = filterHtml + itemsHtml;
+
+  // Add filter event handlers
+  if (isAllMail) {
+    setupFilterHandlers(container, mail, options);
+  }
 
   // Add click handlers
   container.querySelectorAll('.mail-item').forEach(item => {
@@ -52,6 +184,105 @@ export function renderMailList(container, mail, options = {}) {
 }
 
 /**
+ * Build filter UI HTML
+ */
+function buildFilterUI(mail) {
+  const rigs = getUniqueRigs(mail);
+  const agentTypes = Object.entries(AGENT_TYPES);
+
+  return `
+    <div class="mail-filters">
+      <div class="filter-row">
+        <div class="filter-group">
+          <label>Agent Type</label>
+          <select id="mail-agent-filter" class="filter-select">
+            <option value="all">All Types</option>
+            ${agentTypes.map(([key, config]) => `
+              <option value="${key}" ${currentFilters.agentType === key ? 'selected' : ''}>
+                ${config.label}
+              </option>
+            `).join('')}
+          </select>
+        </div>
+
+        <div class="filter-group">
+          <label>Rig</label>
+          <select id="mail-rig-filter" class="filter-select">
+            <option value="all">All Rigs</option>
+            ${rigs.map(rig => `
+              <option value="${rig}" ${currentFilters.rig === rig ? 'selected' : ''}>
+                ${rig}
+              </option>
+            `).join('')}
+          </select>
+        </div>
+
+        <div class="filter-group search-group">
+          <label>Search</label>
+          <input type="text" id="mail-search" class="filter-input"
+                 placeholder="Search mail..." value="${escapeHtml(currentFilters.search)}">
+        </div>
+
+        <button class="btn btn-ghost btn-sm" id="mail-clear-filters" title="Clear filters">
+          <span class="material-icons">clear</span>
+        </button>
+      </div>
+
+      <div class="agent-legend">
+        ${agentTypes.map(([key, config]) => `
+          <span class="legend-item" style="--agent-color: ${config.color}">
+            <span class="material-icons" style="color: ${config.color}">${config.icon}</span>
+            ${config.label}
+          </span>
+        `).join('')}
+      </div>
+    </div>
+  `;
+}
+
+/**
+ * Setup filter event handlers
+ */
+function setupFilterHandlers(container, mail, options) {
+  const agentFilter = container.querySelector('#mail-agent-filter');
+  const rigFilter = container.querySelector('#mail-rig-filter');
+  const searchInput = container.querySelector('#mail-search');
+  const clearBtn = container.querySelector('#mail-clear-filters');
+
+  if (agentFilter) {
+    agentFilter.addEventListener('change', () => {
+      currentFilters.agentType = agentFilter.value;
+      renderMailList(container, mail, options);
+    });
+  }
+
+  if (rigFilter) {
+    rigFilter.addEventListener('change', () => {
+      currentFilters.rig = rigFilter.value;
+      renderMailList(container, mail, options);
+    });
+  }
+
+  if (searchInput) {
+    let searchTimeout;
+    searchInput.addEventListener('input', () => {
+      clearTimeout(searchTimeout);
+      searchTimeout = setTimeout(() => {
+        currentFilters.search = searchInput.value;
+        renderMailList(container, mail, options);
+      }, 300);
+    });
+  }
+
+  if (clearBtn) {
+    clearBtn.addEventListener('click', () => {
+      currentFilters = { agentType: 'all', rig: 'all', search: '' };
+      renderMailList(container, mail, options);
+    });
+  }
+}
+
+/**
  * Render a single mail item
  */
 function renderMailItem(mail, index) {
@@ -60,16 +291,34 @@ function renderMailItem(mail, index) {
   const isUnread = !mail.read;
   const isFeedMail = mail.feedEvent; // From all-mail view
 
-  // For feed mail, show both from and to
+  // Get agent types for color coding
+  const fromType = getAgentType(mail.from);
+  const toType = getAgentType(mail.to);
+  const fromConfig = AGENT_TYPES[fromType] || AGENT_TYPES.system;
+  const toConfig = AGENT_TYPES[toType] || AGENT_TYPES.system;
+
+  // For feed mail, show both from and to with colors
   const fromTo = isFeedMail && mail.to
-    ? `${formatAgent(mail.from)} → ${formatAgent(mail.to)}`
-    : escapeHtml(mail.from || 'System');
+    ? `<span class="agent-badge" style="--agent-color: ${fromConfig.color}">
+         <span class="material-icons">${fromConfig.icon}</span>
+         ${formatAgentShort(mail.from)}
+       </span>
+       <span class="mail-arrow">→</span>
+       <span class="agent-badge" style="--agent-color: ${toConfig.color}">
+         <span class="material-icons">${toConfig.icon}</span>
+         ${formatAgentShort(mail.to)}
+       </span>`
+    : `<span class="agent-badge" style="--agent-color: ${fromConfig.color}">
+         <span class="material-icons">${fromConfig.icon}</span>
+         ${escapeHtml(mail.from || 'System')}
+       </span>`;
 
   return `
     <div class="mail-item ${isUnread ? 'unread' : ''} ${isFeedMail ? 'feed-mail' : ''} animate-spawn stagger-${Math.min(index, 6)}"
-         data-mail-id="${mail.id}">
+         data-mail-id="${mail.id}"
+         style="--from-color: ${fromConfig.color}">
       <div class="mail-status">
-        <span class="material-icons ${priorityConfig.class}">${priorityConfig.icon}</span>
+        <span class="material-icons" style="color: ${fromConfig.color}">${fromConfig.icon}</span>
       </div>
 
       <div class="mail-content">
