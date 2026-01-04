@@ -5,6 +5,8 @@
  */
 
 import { AGENT_TYPES, getAgentType, getAgentConfig, formatAgentName } from '../shared/agent-types.js';
+import { api } from '../api.js';
+import { showToast } from './toast.js';
 
 // Priority icons and colors
 const PRIORITY_CONFIG = {
@@ -134,11 +136,54 @@ export function renderMailList(container, mail, options = {}) {
 
   // Add click handlers
   container.querySelectorAll('.mail-item').forEach(item => {
-    item.addEventListener('click', () => {
+    item.addEventListener('click', (e) => {
+      // Don't trigger detail view if clicking action buttons
+      if (e.target.closest('.mail-actions')) return;
+
       const mailId = item.dataset.mailId;
       showMailDetail(mailId, mail.find(m => m.id === mailId));
     });
   });
+
+  // Add action handlers
+  container.querySelectorAll('[data-action="toggle-read"]').forEach(btn => {
+    btn.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      const mailId = btn.dataset.mailId;
+      const mailItem = mail.find(m => m.id === mailId);
+      if (mailItem) {
+        await handleToggleRead(mailId, !mailItem.read, btn);
+      }
+    });
+  });
+}
+
+/**
+ * Handle toggle read/unread status
+ */
+async function handleToggleRead(mailId, markAsRead, btn) {
+  const originalIcon = btn.innerHTML;
+  btn.innerHTML = '<span class="material-icons spinning">sync</span>';
+  btn.disabled = true;
+
+  try {
+    const result = markAsRead
+      ? await api.markMailRead(mailId)
+      : await api.markMailUnread(mailId);
+
+    if (result.success) {
+      showToast(`Mail marked as ${markAsRead ? 'read' : 'unread'}`, 'success');
+      // Trigger mail refresh
+      document.dispatchEvent(new CustomEvent('mail:refresh'));
+    } else {
+      showToast(`Failed: ${result.error}`, 'error');
+    }
+  } catch (err) {
+    showToast(`Error: ${err.message}`, 'error');
+  } finally {
+    btn.innerHTML = originalIcon;
+    btn.disabled = false;
+  }
 }
 
 /**
@@ -298,10 +343,13 @@ function renderMailItem(mail, index) {
 
       ${!isFeedMail ? `
         <div class="mail-actions">
-          <button class="btn btn-icon btn-sm" title="Archive" data-action="archive">
+          <button class="btn btn-icon btn-sm" title="${isUnread ? 'Mark as read' : 'Mark as unread'}" data-action="toggle-read" data-mail-id="${mail.id}">
+            <span class="material-icons">${isUnread ? 'mark_email_read' : 'mark_email_unread'}</span>
+          </button>
+          <button class="btn btn-icon btn-sm" title="Archive" data-action="archive" data-mail-id="${mail.id}">
             <span class="material-icons">archive</span>
           </button>
-          <button class="btn btn-icon btn-sm" title="Delete" data-action="delete">
+          <button class="btn btn-icon btn-sm" title="Delete" data-action="delete" data-mail-id="${mail.id}">
             <span class="material-icons">delete</span>
           </button>
         </div>

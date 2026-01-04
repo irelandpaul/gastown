@@ -89,8 +89,20 @@ export const api = {
     return this.get('/api/mail');
   },
 
+  getMailMessage(id) {
+    return this.get(`/api/mail/${encodeURIComponent(id)}`);
+  },
+
   sendMail(to, subject, message, priority = 'normal') {
     return this.post('/api/mail', { to, subject, message, priority });
+  },
+
+  markMailRead(id) {
+    return this.post(`/api/mail/${encodeURIComponent(id)}/read`);
+  },
+
+  markMailUnread(id) {
+    return this.post(`/api/mail/${encodeURIComponent(id)}/unread`);
   },
 
   // === Agents ===

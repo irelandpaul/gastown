@@ -345,6 +345,55 @@ app.get('/api/mail/all', async (req, res) => {
   }
 });
 
+// Get single mail message
+app.get('/api/mail/:id', async (req, res) => {
+  const { id } = req.params;
+
+  try {
+    const result = await executeGT(['mail', 'read', id, '--json']);
+    if (result.success) {
+      const mail = parseJSON(result.data);
+      res.json(mail || { id, error: 'Not found' });
+    } else {
+      res.status(404).json({ error: 'Mail not found' });
+    }
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Mark mail as read
+app.post('/api/mail/:id/read', async (req, res) => {
+  const { id } = req.params;
+
+  try {
+    const result = await executeGT(['mail', 'mark-read', id]);
+    if (result.success) {
+      res.json({ success: true, id, read: true });
+    } else {
+      res.status(500).json({ error: result.error || 'Failed to mark as read' });
+    }
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Mark mail as unread
+app.post('/api/mail/:id/unread', async (req, res) => {
+  const { id } = req.params;
+
+  try {
+    const result = await executeGT(['mail', 'mark-unread', id]);
+    if (result.success) {
+      res.json({ success: true, id, read: false });
+    } else {
+      res.status(500).json({ error: result.error || 'Failed to mark as unread' });
+    }
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // ============= Beads API =============
 
 // Create a new bead (issue)

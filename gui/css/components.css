@@ -4805,3 +4805,51 @@ select {
 .text-muted {
   color: var(--text-tertiary);
 }
+
+/* === Mail Detail Modal === */
+.mail-detail-meta {
+  background: var(--bg-primary);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  padding: var(--space-md);
+  margin-bottom: var(--space-lg);
+}
+
+.mail-detail-row {
+  display: flex;
+  gap: var(--space-md);
+  padding: var(--space-xs) 0;
+}
+
+.mail-detail-row:not(:last-child) {
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.mail-detail-label {
+  font-weight: 600;
+  color: var(--text-secondary);
+  min-width: 60px;
+}
+
+.mail-detail-value {
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+}
+
+.mail-detail-body {
+  background: var(--bg-primary);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  padding: var(--space-lg);
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.mail-detail-body pre {
+  margin: 0;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  color: var(--text-primary);
+}

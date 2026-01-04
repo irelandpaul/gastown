@@ -644,6 +644,45 @@
         </div>
       </div>
 
+      <!-- Mail Detail Modal -->
+      <div class="modal modal-lg hidden" id="mail-detail-modal">
+        <div class="modal-header">
+          <h2>
+            <span class="material-icons">mail</span>
+            <span id="mail-detail-subject">Message</span>
+          </h2>
+          <button class="modal-close" data-modal-close>
+            <span class="material-icons">close</span>
+          </button>
+        </div>
+        <div class="modal-body">
+          <div class="mail-detail-meta">
+            <div class="mail-detail-row">
+              <span class="mail-detail-label">From:</span>
+              <span id="mail-detail-from" class="mail-detail-value">-</span>
+            </div>
+            <div class="mail-detail-row">
+              <span class="mail-detail-label">To:</span>
+              <span id="mail-detail-to" class="mail-detail-value">-</span>
+            </div>
+            <div class="mail-detail-row">
+              <span class="mail-detail-label">Time:</span>
+              <span id="mail-detail-time" class="mail-detail-value">-</span>
+            </div>
+          </div>
+          <div class="mail-detail-body">
+            <pre id="mail-detail-body"></pre>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-secondary" data-modal-close>Close</button>
+          <button class="btn btn-primary" id="mail-reply-btn">
+            <span class="material-icons">reply</span>
+            Reply
+          </button>
+        </div>
+      </div>
+
       <!-- New Formula Modal -->
       <div class="modal hidden" id="new-formula-modal">
         <div class="modal-header">

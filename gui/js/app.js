@@ -115,6 +115,17 @@ async function init() {
   document.addEventListener('work:refresh', () => {
     loadWork();
   });
+
+  // Listen for mail refresh (from read/unread actions)
+  document.addEventListener('mail:refresh', () => {
+    loadMail();
+  });
+
+  // Handle mail detail modal
+  document.addEventListener('mail:detail', (e) => {
+    const { mailId, mail } = e.detail;
+    showMailDetailModal(mail);
+  });
 }
 
 // Navigation setup
@@ -523,6 +534,34 @@ function closeAllModals() {
   const overlay = document.getElementById('modal-overlay');
   overlay.classList.add('hidden');
   document.querySelectorAll('.modal').forEach(m => m.classList.add('hidden'));
+}
+
+// Show mail detail modal
+function showMailDetailModal(mail) {
+  if (!mail) return;
+
+  const modal = document.getElementById('mail-detail-modal');
+  if (!modal) return;
+
+  const subjectEl = modal.querySelector('#mail-detail-subject');
+  const fromEl = modal.querySelector('#mail-detail-from');
+  const toEl = modal.querySelector('#mail-detail-to');
+  const timeEl = modal.querySelector('#mail-detail-time');
+  const bodyEl = modal.querySelector('#mail-detail-body');
+
+  if (subjectEl) subjectEl.textContent = mail.subject || '(No Subject)';
+  if (fromEl) fromEl.textContent = mail.from || 'Unknown';
+  if (toEl) toEl.textContent = mail.to || 'Unknown';
+  if (timeEl) timeEl.textContent = new Date(mail.timestamp).toLocaleString();
+  if (bodyEl) bodyEl.textContent = mail.message || mail.body || '';
+
+  // Mark as read when viewing
+  if (!mail.read && !mail.feedEvent) {
+    api.markMailRead(mail.id).catch(err => console.warn('Failed to mark mail as read:', err));
+  }
+
+  document.getElementById('modal-overlay').classList.remove('hidden');
+  modal.classList.remove('hidden');
 }
 
 // Theme toggle
