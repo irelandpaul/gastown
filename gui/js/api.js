@@ -191,6 +191,10 @@ export const api = {
     return this.post('/api/rigs', { name, url });
   },
 
+  removeRig(name) {
+    return this.request(`/api/rigs/${encodeURIComponent(name)}`, { method: 'DELETE' });
+  },
+
   runDoctor() {
     return this.get('/api/doctor');
   },

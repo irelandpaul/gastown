@@ -79,6 +79,15 @@ export function renderRigList(container, rigs) {
         await handleAgentRestart(rig, name, btn);
       });
     });
+
+    // Remove rig
+    card.querySelectorAll('[data-action="remove"]').forEach(btn => {
+      btn.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        const rigName = btn.dataset.rigName;
+        await handleRigRemove(rigName, btn);
+      });
+    });
   });
 }
 
@@ -165,6 +174,9 @@ function renderRigCard(rig, index) {
         </button>
         <button class="btn btn-sm btn-ghost" data-action="settings" title="Rig settings">
           <span class="material-icons">settings</span>
+        </button>
+        <button class="btn btn-sm btn-danger-ghost" data-action="remove" data-rig-name="${rig.name}" title="Remove this rig">
+          <span class="material-icons">delete</span>
         </button>
       </div>
     </div>
@@ -293,6 +305,37 @@ async function handleAgentRestart(rig, name, btn) {
       document.dispatchEvent(new CustomEvent('rigs:refresh'));
     } else {
       showToast(`Failed to restart: ${result.error}`, 'error');
+    }
+  } catch (err) {
+    showToast(`Error: ${err.message}`, 'error');
+  } finally {
+    btn.innerHTML = originalIcon;
+    btn.disabled = false;
+  }
+}
+
+/**
+ * Handle rig removal
+ */
+async function handleRigRemove(rigName, btn) {
+  // Confirm before removing
+  if (!confirm(`Are you sure you want to remove the rig "${rigName}"?\n\nThis will remove the rig from Gas Town but will not delete any files.`)) {
+    return;
+  }
+
+  const originalIcon = btn.innerHTML;
+  btn.innerHTML = '<span class="material-icons spinning">sync</span>';
+  btn.disabled = true;
+
+  try {
+    const result = await api.removeRig(rigName);
+    if (result.success) {
+      showToast(`Rig "${rigName}" removed`, 'success');
+      // Trigger refresh
+      document.dispatchEvent(new CustomEvent('rigs:refresh'));
+      document.dispatchEvent(new CustomEvent('status:refresh'));
+    } else {
+      showToast(`Failed to remove rig: ${result.error}`, 'error');
     }
   } catch (err) {
     showToast(`Error: ${err.message}`, 'error');

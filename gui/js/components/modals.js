@@ -79,6 +79,12 @@ export function initModals() {
     onOpen: initHelpModal,
   });
 
+  registerModal('new-rig', {
+    element: document.getElementById('new-rig-modal'),
+    onOpen: initNewRigModal,
+    onSubmit: handleNewRigSubmit,
+  });
+
   // Close on overlay click
   overlay?.addEventListener('click', (e) => {
     if (e.target === overlay) {
@@ -630,6 +636,38 @@ function initHelpModal(element) {
       });
     });
   });
+}
+
+// === New Rig Modal ===
+
+function initNewRigModal(element, data) {
+  const form = element.querySelector('form');
+  if (form) form.reset();
+}
+
+async function handleNewRigSubmit(form) {
+  const name = form.querySelector('[name="name"]')?.value;
+  const url = form.querySelector('[name="url"]')?.value;
+
+  if (!name || !url) {
+    showToast('Please enter both name and path', 'warning');
+    return;
+  }
+
+  try {
+    const result = await api.addRig(name, url);
+
+    if (result.success) {
+      showToast(`Rig "${name}" added successfully`, 'success');
+      closeAllModals();
+      // Trigger refresh
+      document.dispatchEvent(new CustomEvent('rigs:refresh'));
+    } else {
+      showToast(`Failed to add rig: ${result.error}`, 'error');
+    }
+  } catch (err) {
+    showToast(`Failed to add rig: ${err.message}`, 'error');
+  }
 }
 
 async function handleMailComposeSubmit(form) {

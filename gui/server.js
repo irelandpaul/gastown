@@ -891,6 +891,24 @@ app.get('/api/rigs', async (req, res) => {
   }
 });
 
+// Remove a rig
+app.delete('/api/rigs/:name', async (req, res) => {
+  const { name } = req.params;
+
+  if (!name) {
+    return res.status(400).json({ error: 'Rig name is required' });
+  }
+
+  const result = await executeGT(['rig', 'remove', name]);
+
+  if (result.success) {
+    broadcast({ type: 'rig_removed', data: { name } });
+    res.json({ success: true, name, raw: result.data });
+  } else {
+    res.status(500).json({ success: false, error: result.error });
+  }
+});
+
 // Run gt doctor
 app.get('/api/doctor', async (req, res) => {
   const result = await executeGT(['doctor', '--json']);

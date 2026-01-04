@@ -474,6 +474,38 @@
         </form>
       </div>
 
+      <!-- Add Rig Modal -->
+      <div class="modal hidden" id="new-rig-modal">
+        <div class="modal-header">
+          <h2>
+            <span class="material-icons">folder_special</span>
+            Add Rig
+          </h2>
+          <button class="modal-close" data-modal-close>
+            <span class="material-icons">close</span>
+          </button>
+        </div>
+        <form class="modal-body" id="new-rig-form">
+          <div class="form-group">
+            <label for="rig-name">Rig Name</label>
+            <input type="text" id="rig-name" name="name" placeholder="e.g., my-project" required>
+            <span class="form-hint">A short name for this rig (used in paths)</span>
+          </div>
+          <div class="form-group">
+            <label for="rig-url">Repository Path</label>
+            <input type="text" id="rig-url" name="url" placeholder="e.g., ~/projects/my-project" required>
+            <span class="form-hint">Local path or Git URL to the project repository</span>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-modal-close>Cancel</button>
+            <button type="submit" class="btn btn-primary">
+              <span class="material-icons">add</span>
+              Add Rig
+            </button>
+          </div>
+        </form>
+      </div>
+
       <!-- Help/Glossary Modal -->
       <div class="modal modal-lg hidden" id="help-modal">
         <div class="modal-header">
