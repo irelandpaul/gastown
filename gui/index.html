@@ -46,6 +46,10 @@
             <span class="material-icons">merge_type</span>
             PRs
           </button>
+          <button class="nav-tab" data-view="formulas" data-tooltip="Workflow templates for repeatable tasks.">
+            <span class="material-icons">science</span>
+            Formulas
+          </button>
           <button class="nav-tab" data-view="mail" data-tooltip="Messages between agents and the human overseer.">
             <span class="material-icons">mail</span>
             Mail
@@ -196,6 +200,25 @@
             </div>
           </div>
           <div class="pr-list" id="pr-list-container">
+            <!-- Populated by JS -->
+          </div>
+        </div>
+
+        <!-- Formulas View -->
+        <div class="view" id="view-formulas">
+          <div class="view-header">
+            <h1>Formulas</h1>
+            <div class="view-actions">
+              <button class="btn btn-sm btn-icon" id="formula-refresh" title="Refresh">
+                <span class="material-icons">refresh</span>
+              </button>
+              <button class="btn btn-primary" id="new-formula-btn">
+                <span class="material-icons">add</span>
+                New Formula
+              </button>
+            </div>
+          </div>
+          <div class="formula-list" id="formula-list-container">
             <!-- Populated by JS -->
           </div>
         </div>
@@ -595,6 +618,70 @@
             </div>
           </div>
         </div>
+      </div>
+
+      <!-- New Formula Modal -->
+      <div class="modal hidden" id="new-formula-modal">
+        <div class="modal-header">
+          <h2>Create Formula</h2>
+          <button class="modal-close" data-modal-close>
+            <span class="material-icons">close</span>
+          </button>
+        </div>
+        <form class="modal-body" id="new-formula-form">
+          <div class="form-group">
+            <label for="formula-name">Formula Name</label>
+            <input type="text" id="formula-name" name="name" placeholder="e.g., bug-fix, new-feature" required>
+          </div>
+          <div class="form-group">
+            <label for="formula-description">Description (optional)</label>
+            <input type="text" id="formula-description" name="description" placeholder="What this formula does...">
+          </div>
+          <div class="form-group">
+            <label for="formula-template">Template</label>
+            <textarea id="formula-template" name="template" placeholder="The work template (instructions for workers)..." rows="6" required></textarea>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-modal-close>Cancel</button>
+            <button type="submit" class="btn btn-primary">
+              <span class="material-icons">science</span>
+              Create Formula
+            </button>
+          </div>
+        </form>
+      </div>
+
+      <!-- Use Formula Modal -->
+      <div class="modal hidden" id="use-formula-modal">
+        <div class="modal-header">
+          <h2>Use Formula</h2>
+          <button class="modal-close" data-modal-close>
+            <span class="material-icons">close</span>
+          </button>
+        </div>
+        <form class="modal-body" id="use-formula-form">
+          <div class="form-group">
+            <label for="use-formula-name">Formula</label>
+            <input type="text" id="use-formula-name" name="name" readonly>
+          </div>
+          <div class="form-group">
+            <label for="use-formula-target">Target</label>
+            <select id="use-formula-target" name="target" required>
+              <option value="">Select target...</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="use-formula-args">Arguments (optional)</label>
+            <textarea id="use-formula-args" name="args" placeholder="Additional arguments for the formula..." rows="3"></textarea>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-modal-close>Cancel</button>
+            <button type="submit" class="btn btn-primary">
+              <span class="material-icons">play_arrow</span>
+              Use Formula
+            </button>
+          </div>
+        </form>
       </div>
 
       <!-- Agent Peek Modal -->
