@@ -16,6 +16,7 @@ import { renderMailList } from './components/mail-list.js';
 import { renderRigList } from './components/rig-list.js';
 import { initPRList, loadPRs } from './components/pr-list.js';
 import { initFormulaList, loadFormulas } from './components/formula-list.js';
+import { initIssueList, loadIssues } from './components/issue-list.js';
 import { showToast } from './components/toast.js';
 import { initModals } from './components/modals.js';
 import { startTutorial, shouldShowTutorial } from './components/tutorial.js';
@@ -56,6 +57,9 @@ async function init() {
 
   // Set up Formula list
   initFormulaList();
+
+  // Set up Issue list
+  initIssueList();
 
   // Set up convoy filters
   setupConvoyFilters();
@@ -147,6 +151,8 @@ function switchView(viewId) {
     loadPRs();
   } else if (viewId === 'formulas') {
     loadFormulas();
+  } else if (viewId === 'issues') {
+    loadIssues();
   }
 }
 

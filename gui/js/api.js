@@ -226,6 +226,15 @@ export const api = {
   getGitHubPR(repo, number) {
     return this.get(`/api/github/pr/${encodeURIComponent(repo)}/${number}`);
   },
+
+  // === GitHub Issues ===
+  getGitHubIssues(state = 'open') {
+    return this.get(`/api/github/issues?state=${encodeURIComponent(state)}`);
+  },
+
+  getGitHubIssue(repo, number) {
+    return this.get(`/api/github/issue/${encodeURIComponent(repo)}/${number}`);
+  },
 };
 
 // WebSocket Client

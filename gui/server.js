@@ -1112,6 +1112,91 @@ app.get('/api/github/pr/:repo/:number', async (req, res) => {
   }
 });
 
+// Get GitHub issues across all rigs
+app.get('/api/github/issues', async (req, res) => {
+  const state = req.query.state || 'open'; // open, closed, all
+  const allIssues = [];
+
+  try {
+    // Get status to find rigs and their git_urls
+    const result = await executeGT(['status', '--json']);
+    if (!result.success) {
+      return res.status(500).json({ error: 'Failed to get status' });
+    }
+
+    const status = parseJSON(result.data);
+    const rigs = status?.rigs || [];
+
+    // Extract GitHub repos from rigs
+    for (const rig of rigs) {
+      let repoUrl = rig.git_url || rig.github_url;
+
+      // Try to read from config if not in status
+      if (!repoUrl && rig.path) {
+        try {
+          const configPath = path.join(rig.path, '.bd', 'config.json');
+          const configContent = await fs.readFile(configPath, 'utf-8');
+          const config = JSON.parse(configContent);
+          repoUrl = config.git_url || config.github_url || config.remote?.github;
+        } catch (e) {
+          // No config
+        }
+      }
+
+      if (repoUrl) {
+        // Extract owner/repo from URL
+        const match = repoUrl.match(/github\.com[\/:]([^\/]+)\/([^\/\.]+)/);
+        if (match) {
+          const repo = `${match[1]}/${match[2]}`;
+          try {
+            // Use gh CLI to list issues
+            const { stdout } = await execAsync(
+              `gh issue list --repo ${repo} --state ${state} --json number,title,author,labels,createdAt,updatedAt,url,state,body --limit 50`,
+              { timeout: 15000 }
+            );
+            const issues = JSON.parse(stdout || '[]');
+            issues.forEach(issue => {
+              allIssues.push({
+                ...issue,
+                repo,
+                rig: rig.name,
+              });
+            });
+          } catch (e) {
+            console.warn(`[GitHub] Failed to fetch issues for ${repo}:`, e.message);
+          }
+        }
+      }
+    }
+
+    // Sort by updatedAt descending
+    allIssues.sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
+
+    res.json(allIssues);
+  } catch (err) {
+    console.error('[GitHub] Error fetching issues:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Get GitHub issue details
+app.get('/api/github/issue/:repo/:number', async (req, res) => {
+  const { repo, number } = req.params;
+
+  try {
+    const { stdout } = await execAsync(
+      `gh issue view ${number} --repo ${repo} --json number,title,author,body,createdAt,updatedAt,url,state,labels,comments,assignees`,
+      { timeout: 15000 }
+    );
+
+    const issue = JSON.parse(stdout);
+    res.json(issue);
+  } catch (err) {
+    console.error(`[GitHub] Error fetching issue #${number}:`, err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // ============= WebSocket for Real-time Events =============
 
 // Start activity stream

@@ -50,6 +50,10 @@
             <span class="material-icons">science</span>
             Formulas
           </button>
+          <button class="nav-tab" data-view="issues" data-tooltip="GitHub Issues across connected repositories.">
+            <span class="material-icons">bug_report</span>
+            Issues
+          </button>
           <button class="nav-tab" data-view="mail" data-tooltip="Messages between agents and the human overseer.">
             <span class="material-icons">mail</span>
             Mail
@@ -219,6 +223,26 @@
             </div>
           </div>
           <div class="formula-list" id="formula-list-container">
+            <!-- Populated by JS -->
+          </div>
+        </div>
+
+        <!-- GitHub Issues View -->
+        <div class="view" id="view-issues">
+          <div class="view-header">
+            <h1>GitHub Issues</h1>
+            <div class="view-actions">
+              <div class="filter-group">
+                <button class="issue-state-tab active" data-state="open">Open</button>
+                <button class="issue-state-tab" data-state="closed">Closed</button>
+                <button class="issue-state-tab" data-state="all">All</button>
+              </div>
+              <button class="btn btn-sm btn-icon" id="issue-refresh" title="Refresh">
+                <span class="material-icons">refresh</span>
+              </button>
+            </div>
+          </div>
+          <div class="issue-list" id="issue-list-container">
             <!-- Populated by JS -->
           </div>
         </div>
