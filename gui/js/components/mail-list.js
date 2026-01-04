@@ -16,15 +16,17 @@ const PRIORITY_CONFIG = {
  * @param {HTMLElement} container - The mail list container
  * @param {Array} mail - Array of mail objects
  */
-export function renderMailList(container, mail) {
+export function renderMailList(container, mail, options = {}) {
   if (!container) return;
+
+  const isAllMail = options.isAllMail || (mail && mail[0]?.feedEvent);
 
   if (!mail || mail.length === 0) {
     container.innerHTML = `
       <div class="empty-state">
-        <span class="material-icons empty-icon">mail</span>
-        <h3>No Mail</h3>
-        <p>Your inbox is empty</p>
+        <span class="material-icons empty-icon">${isAllMail ? 'forum' : 'mail'}</span>
+        <h3>${isAllMail ? 'No System Mail' : 'No Mail'}</h3>
+        <p>${isAllMail ? 'No mail activity in the system yet' : 'Your inbox is empty'}</p>
       </div>
     `;
     return;
@@ -56,9 +58,15 @@ function renderMailItem(mail, index) {
   const priority = mail.priority || 'normal';
   const priorityConfig = PRIORITY_CONFIG[priority] || PRIORITY_CONFIG.normal;
   const isUnread = !mail.read;
+  const isFeedMail = mail.feedEvent; // From all-mail view
+
+  // For feed mail, show both from and to
+  const fromTo = isFeedMail && mail.to
+    ? `${formatAgent(mail.from)} → ${formatAgent(mail.to)}`
+    : escapeHtml(mail.from || 'System');
 
   return `
-    <div class="mail-item ${isUnread ? 'unread' : ''} animate-spawn stagger-${Math.min(index, 6)}"
+    <div class="mail-item ${isUnread ? 'unread' : ''} ${isFeedMail ? 'feed-mail' : ''} animate-spawn stagger-${Math.min(index, 6)}"
          data-mail-id="${mail.id}">
       <div class="mail-status">
         <span class="material-icons ${priorityConfig.class}">${priorityConfig.icon}</span>
@@ -66,7 +74,7 @@ function renderMailItem(mail, index) {
 
       <div class="mail-content">
         <div class="mail-header">
-          <span class="mail-from">${escapeHtml(mail.from || 'System')}</span>
+          <span class="mail-from">${fromTo}</span>
           <span class="mail-time">${formatTime(mail.timestamp)}</span>
         </div>
         <div class="mail-subject ${isUnread ? 'unread' : ''}">${escapeHtml(mail.subject || '(No Subject)')}</div>
@@ -81,16 +89,32 @@ function renderMailItem(mail, index) {
         ` : ''}
       </div>
 
-      <div class="mail-actions">
-        <button class="btn btn-icon btn-sm" title="Archive" data-action="archive">
-          <span class="material-icons">archive</span>
-        </button>
-        <button class="btn btn-icon btn-sm" title="Delete" data-action="delete">
-          <span class="material-icons">delete</span>
-        </button>
-      </div>
+      ${!isFeedMail ? `
+        <div class="mail-actions">
+          <button class="btn btn-icon btn-sm" title="Archive" data-action="archive">
+            <span class="material-icons">archive</span>
+          </button>
+          <button class="btn btn-icon btn-sm" title="Delete" data-action="delete">
+            <span class="material-icons">delete</span>
+          </button>
+        </div>
+      ` : ''}
     </div>
   `;
+}
+
+/**
+ * Format agent name for display (shorten long paths)
+ */
+function formatAgent(name) {
+  if (!name) return 'unknown';
+  // Shorten paths like "hytopia-map-compression/polecats/slit" to "slit"
+  // or "hytopia-map-compression/witness" to "witness"
+  const parts = name.split('/');
+  if (parts.length > 1) {
+    return escapeHtml(parts[parts.length - 1]);
+  }
+  return escapeHtml(name);
 }
 
 /**

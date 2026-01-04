@@ -159,8 +159,18 @@
         <!-- Mail View -->
         <div class="view" id="view-mail">
           <div class="view-header">
-            <h1>Inbox</h1>
+            <h1 id="mail-view-title">My Inbox</h1>
             <div class="view-actions">
+              <div class="filter-group">
+                <button class="btn btn-secondary filter-active" id="mail-filter-mine">
+                  <span class="material-icons">inbox</span>
+                  My Inbox
+                </button>
+                <button class="btn btn-ghost" id="mail-filter-all">
+                  <span class="material-icons">forum</span>
+                  All Mail
+                </button>
+              </div>
               <button class="btn btn-secondary" id="compose-mail-btn" data-modal-open="mail-compose">
                 <span class="material-icons">edit</span>
                 Compose

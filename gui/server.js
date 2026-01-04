@@ -13,6 +13,8 @@ import { WebSocketServer } from 'ws';
 import { spawn, exec } from 'child_process';
 import { promisify } from 'util';
 import path from 'path';
+import fs from 'fs';
+import readline from 'readline';
 import { fileURLToPath } from 'url';
 import cors from 'cors';
 
@@ -282,6 +284,53 @@ app.post('/api/mail', async (req, res) => {
     res.json({ success: true });
   } else {
     res.status(500).json({ error: result.error });
+  }
+});
+
+// Get all mail from feed (for observability)
+app.get('/api/mail/all', async (req, res) => {
+  try {
+    const feedPath = path.join(GT_ROOT, '.feed.jsonl');
+    if (!fs.existsSync(feedPath)) {
+      return res.json([]);
+    }
+
+    const fileStream = fs.createReadStream(feedPath);
+    const rl = readline.createInterface({
+      input: fileStream,
+      crlfDelay: Infinity
+    });
+
+    const mailEvents = [];
+    for await (const line of rl) {
+      if (!line.trim()) continue;
+      try {
+        const event = JSON.parse(line);
+        if (event.type === 'mail') {
+          // Transform feed event to mail-like object
+          mailEvents.push({
+            id: `feed-${event.ts}-${mailEvents.length}`,
+            from: event.actor || 'unknown',
+            to: event.payload?.to || 'unknown',
+            subject: event.payload?.subject || event.summary || '(No Subject)',
+            body: event.payload?.body || event.payload?.message || '',
+            timestamp: event.ts,
+            read: true, // Feed mail is historical
+            priority: event.payload?.priority || 'normal',
+            feedEvent: true, // Mark as feed-sourced
+          });
+        }
+      } catch (e) {
+        // Skip malformed lines
+      }
+    }
+
+    // Sort newest first
+    mailEvents.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+    res.json(mailEvents);
+  } catch (err) {
+    console.error('[API] Failed to read feed for mail:', err);
+    res.status(500).json({ error: 'Failed to read mail feed' });
   }
 });
 

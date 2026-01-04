@@ -53,6 +53,9 @@ async function init() {
   // Set up work filters
   setupWorkFilters();
 
+  // Set up mail filters
+  setupMailFilters();
+
   // Set up keyboard shortcuts
   setupKeyboardShortcuts();
 
@@ -253,12 +256,51 @@ function setupConvoyFilters() {
   }
 }
 
+// Track mail filter state
+let mailFilter = 'mine'; // 'mine' = my inbox, 'all' = all system mail
+
 async function loadMail() {
   try {
-    const mail = await api.getMail();
-    state.setMail(mail);
+    let mail;
+    if (mailFilter === 'all') {
+      // Get all mail from feed
+      mail = await api.get('/api/mail/all');
+    } else {
+      // Get my inbox only
+      mail = await api.getMail();
+    }
+    state.setMail(mail || []);
   } catch (err) {
     console.error('[App] Failed to load mail:', err);
+  }
+}
+
+// Setup mail filter toggle
+function setupMailFilters() {
+  const mineBtn = document.getElementById('mail-filter-mine');
+  const allBtn = document.getElementById('mail-filter-all');
+  const title = document.getElementById('mail-view-title');
+
+  if (mineBtn && allBtn) {
+    mineBtn.addEventListener('click', () => {
+      mailFilter = 'mine';
+      mineBtn.classList.remove('btn-ghost');
+      mineBtn.classList.add('btn-secondary', 'filter-active');
+      allBtn.classList.remove('btn-secondary', 'filter-active');
+      allBtn.classList.add('btn-ghost');
+      if (title) title.textContent = 'My Inbox';
+      loadMail();
+    });
+
+    allBtn.addEventListener('click', () => {
+      mailFilter = 'all';
+      allBtn.classList.remove('btn-ghost');
+      allBtn.classList.add('btn-secondary', 'filter-active');
+      mineBtn.classList.remove('btn-secondary', 'filter-active');
+      mineBtn.classList.add('btn-ghost');
+      if (title) title.textContent = 'All System Mail';
+      loadMail();
+    });
   }
 }
 
