@@ -378,7 +378,7 @@ app.post('/api/nudge', async (req, res) => {
 // Get agent list
 app.get('/api/agents', async (req, res) => {
   const [result, runningPolecats] = await Promise.all([
-    executeGT(['status', '--json']),
+    executeGT(['status', '--json', '--fast'], { timeout: 60000 }),
     getRunningPolecats()
   ]);
 
