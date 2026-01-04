@@ -120,6 +120,22 @@ export const api = {
     return this.get(`/api/formulas/search?q=${encodeURIComponent(query)}`);
   },
 
+  getFormulas() {
+    return this.get('/api/formulas');
+  },
+
+  getFormula(name) {
+    return this.get(`/api/formula/${encodeURIComponent(name)}`);
+  },
+
+  createFormula(name, description, template) {
+    return this.post('/api/formulas', { name, description, template });
+  },
+
+  useFormula(name, target, args) {
+    return this.post(`/api/formula/${encodeURIComponent(name)}/use`, { target, args });
+  },
+
   getTargets() {
     return this.get('/api/targets');
   },

@@ -699,6 +699,114 @@ app.get('/api/doctor', async (req, res) => {
   }
 });
 
+// ============= Formula Management =============
+
+// List all formulas
+app.get('/api/formulas', async (req, res) => {
+  const result = await executeGT(['formula', 'list', '--json']);
+
+  if (result.success) {
+    const formulas = parseJSON(result.data) || [];
+    res.json(formulas);
+  } else {
+    // Fallback: try bd formula list
+    try {
+      const { stdout } = await execAsync('bd formula list --json', {
+        cwd: GT_ROOT,
+        timeout: 10000
+      });
+      const formulas = JSON.parse(stdout || '[]');
+      res.json(formulas);
+    } catch {
+      res.json([]);
+    }
+  }
+});
+
+// Search formulas
+app.get('/api/formulas/search', async (req, res) => {
+  const query = req.query.q || '';
+
+  try {
+    // Get all formulas and filter
+    const result = await executeGT(['formula', 'list', '--json']);
+    const formulas = parseJSON(result.data) || [];
+
+    const filtered = formulas.filter(f => {
+      const name = (f.name || '').toLowerCase();
+      const desc = (f.description || '').toLowerCase();
+      const q = query.toLowerCase();
+      return name.includes(q) || desc.includes(q);
+    });
+
+    res.json(filtered);
+  } catch {
+    res.json([]);
+  }
+});
+
+// Get formula details
+app.get('/api/formula/:name', async (req, res) => {
+  const { name } = req.params;
+  const result = await executeGT(['formula', 'show', name, '--json']);
+
+  if (result.success) {
+    const formula = parseJSON(result.data) || {};
+    res.json(formula);
+  } else {
+    res.status(404).json({ error: 'Formula not found' });
+  }
+});
+
+// Create a new formula
+app.post('/api/formulas', async (req, res) => {
+  const { name, description, template } = req.body;
+
+  if (!name) {
+    return res.status(400).json({ error: 'Name is required' });
+  }
+
+  const args = ['formula', 'create', name];
+  if (description) {
+    args.push('--description', description);
+  }
+  if (template) {
+    args.push('--template', template);
+  }
+
+  const result = await executeGT(args);
+
+  if (result.success) {
+    broadcast({ type: 'formula_created', data: { name } });
+    res.json({ success: true, name, raw: result.data });
+  } else {
+    res.status(500).json({ success: false, error: result.error });
+  }
+});
+
+// Use a formula (create work from formula)
+app.post('/api/formula/:name/use', async (req, res) => {
+  const { name } = req.params;
+  const { target, args: formulaArgs } = req.body;
+
+  const cmdArgs = ['formula', 'use', name];
+  if (target) {
+    cmdArgs.push('--target', target);
+  }
+  if (formulaArgs) {
+    cmdArgs.push('--args', formulaArgs);
+  }
+
+  const result = await executeGT(cmdArgs, { timeout: 30000 });
+
+  if (result.success) {
+    broadcast({ type: 'formula_used', data: { name, target } });
+    res.json({ success: true, name, target, raw: result.data });
+  } else {
+    res.status(500).json({ success: false, error: result.error });
+  }
+});
+
 // ============= GitHub Integration =============
 
 // Extract GitHub repo from git_url
