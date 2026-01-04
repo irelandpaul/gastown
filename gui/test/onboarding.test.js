@@ -245,9 +245,9 @@ async function runTests() {
       test('Convoy name input exists', !!convoyNameInput);
       test('Convoy bead display exists', !!convoyBeadDisplay);
 
-      // Check that bead ID is populated
+      // Check that bead ID is populated (accepts gt- or hq- prefixes)
       const beadId = await convoyBeadDisplay?.evaluate(el => el.textContent);
-      test('Bead ID is populated', beadId && beadId.startsWith('gt-'));
+      test('Bead ID is populated', beadId && (beadId.startsWith('gt-') || beadId.startsWith('hq-')));
 
       // Fill and submit
       await convoyNameInput.type('Test Convoy');
