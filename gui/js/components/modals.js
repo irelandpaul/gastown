@@ -15,6 +15,30 @@ const modals = new Map();
 // References
 let overlay = null;
 
+// GitHub repo mapping for known rigs (same as work-list.js)
+const GITHUB_REPOS = {
+  'hytopia-map-compression': 'web3dev1337/hytopia-map-compression',
+  'testproject': null,
+};
+
+function getGitHubRepoForBead(beadId) {
+  if (!beadId) return null;
+  const prefixMatch = beadId.match(/^([a-z]+)-/i);
+  if (prefixMatch) {
+    const prefix = prefixMatch[1].toLowerCase();
+    if (GITHUB_REPOS[prefix]) return GITHUB_REPOS[prefix];
+  }
+  for (const [key, repo] of Object.entries(GITHUB_REPOS)) {
+    if (repo && beadId.toLowerCase().includes(key.toLowerCase())) {
+      return repo;
+    }
+  }
+  for (const repo of Object.values(GITHUB_REPOS)) {
+    if (repo) return repo;
+  }
+  return null;
+}
+
 /**
  * Initialize modals system
  */
@@ -762,9 +786,9 @@ function showBeadDetailModal(beadId, bead) {
   const typeIcon = typeIcons[bead.issue_type] || 'assignment';
   const assignee = bead.assignee ? bead.assignee.split('/').pop() : null;
 
-  // Parse close_reason for links
+  // Parse close_reason for links (pass beadId for GitHub URL lookup)
   const closeReasonHtml = bead.close_reason
-    ? parseCloseReasonForModal(bead.close_reason)
+    ? parseCloseReasonForModal(bead.close_reason, beadId)
     : '';
 
   const content = `
@@ -851,7 +875,7 @@ function showBeadDetailModal(beadId, bead) {
     <div class="modal-footer">
       <button class="btn btn-secondary" data-modal-close>Close</button>
       ${bead.status !== 'closed' ? `
-        <button class="btn btn-primary" onclick="document.dispatchEvent(new CustomEvent('bead:sling', { detail: { beadId: '${beadId}' } })); closeAllModals();">
+        <button class="btn btn-primary sling-btn" data-bead-id="${beadId}">
           <span class="material-icons">send</span>
           Sling Work
         </button>
@@ -860,6 +884,15 @@ function showBeadDetailModal(beadId, bead) {
   `;
 
   const modal = showDynamicModal('bead-detail', content);
+
+  // Add sling button handler
+  const slingBtn = modal.querySelector('.sling-btn');
+  if (slingBtn) {
+    slingBtn.addEventListener('click', () => {
+      document.dispatchEvent(new CustomEvent('bead:sling', { detail: { beadId } }));
+      closeAllModals();
+    });
+  }
 
   // Add copy button handlers
   modal.querySelectorAll('.copy-btn').forEach(btn => {
@@ -872,8 +905,8 @@ function showBeadDetailModal(beadId, bead) {
     });
   });
 
-  // Add commit link handlers
-  modal.querySelectorAll('.commit-link').forEach(link => {
+  // Add commit link handlers (copy-only, no GitHub URL)
+  modal.querySelectorAll('.commit-copy').forEach(link => {
     link.addEventListener('click', (e) => {
       e.preventDefault();
       const hash = link.dataset.commit;
@@ -882,28 +915,54 @@ function showBeadDetailModal(beadId, bead) {
       });
     });
   });
+
+  // Add PR link handlers (copy-only, no GitHub URL)
+  modal.querySelectorAll('.pr-copy').forEach(link => {
+    link.addEventListener('click', (e) => {
+      e.preventDefault();
+      const pr = link.dataset.pr;
+      navigator.clipboard.writeText(`#${pr}`).then(() => {
+        showToast(`Copied: PR #${pr}`, 'success');
+      });
+    });
+  });
 }
 
 /**
  * Parse close_reason for the detail modal (with more formatting)
  */
-function parseCloseReasonForModal(text) {
+function parseCloseReasonForModal(text, beadId) {
   if (!text) return '';
 
   let result = escapeHtml(text);
+  const repo = getGitHubRepoForBead(beadId);
 
   // Replace commit references with styled links
   result = result.replace(/commit\s+([a-f0-9]{7,40})/gi, (match, hash) => {
-    return `<a href="#" class="commit-link code-link" data-commit="${hash}" title="Click to copy">
-      <span class="material-icons">commit</span>${hash.substring(0, 7)}
-    </a>`;
+    if (repo) {
+      const url = `https://github.com/${repo}/commit/${hash}`;
+      return `<a href="${url}" target="_blank" class="commit-link code-link" data-commit="${hash}" title="View on GitHub">
+        <span class="material-icons">commit</span>${hash.substring(0, 7)}
+      </a>`;
+    } else {
+      return `<a href="#" class="commit-copy code-link" data-commit="${hash}" title="Click to copy">
+        <span class="material-icons">commit</span>${hash.substring(0, 7)}
+      </a>`;
+    }
   });
 
   // Replace PR references
   result = result.replace(/PR\s*#?(\d+)/gi, (match, num) => {
-    return `<a href="#" class="pr-link code-link" data-pr="${num}" title="Pull Request #${num}">
-      <span class="material-icons">merge</span>PR #${num}
-    </a>`;
+    if (repo) {
+      const url = `https://github.com/${repo}/pull/${num}`;
+      return `<a href="${url}" target="_blank" class="pr-link code-link" data-pr="${num}" title="View on GitHub">
+        <span class="material-icons">merge</span>PR #${num}
+      </a>`;
+    } else {
+      return `<a href="#" class="pr-copy code-link" data-pr="${num}" title="Click to copy">
+        <span class="material-icons">merge</span>PR #${num}
+      </a>`;
+    }
   });
 
   // Replace file paths (→ filename.ext pattern)
@@ -1012,8 +1071,9 @@ function showDynamicModal(id, content) {
   modal.className = 'modal';
   modal.innerHTML = content;
 
-  // Add to document
-  document.body.appendChild(modal);
+  // Add to overlay (not body - modals must be inside overlay)
+  const modalOverlay = overlay || document.getElementById('modal-overlay');
+  modalOverlay.appendChild(modal);
 
   // Register and show
   registerModal(id, { element: modal });

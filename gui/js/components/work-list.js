@@ -25,15 +25,45 @@ const STATUS_CONFIG = {
   blocked: { icon: 'block', class: 'status-blocked', label: 'Blocked' },
 };
 
-// GitHub repo detection from close_reason patterns
-const GITHUB_PATTERNS = [
-  // "commit a8f756e" or "commit a8f756e → CATALOG.md"
-  /commit\s+([a-f0-9]{7,40})/gi,
-  // "PR #123" or "pr #123"
-  /pr\s*#?(\d+)/gi,
-  // Full GitHub URLs
-  /github\.com\/([^/]+)\/([^/]+)\/(?:commit|pull)\/([a-f0-9]+|\d+)/gi,
-];
+// GitHub repo mapping for known rigs
+// Format: { rigName: 'org/repo' } or { beadPrefix: 'org/repo' }
+// NOTE: This can be configured/extended by the user
+const GITHUB_REPOS = {
+  // Rig name → GitHub org/repo
+  'hytopia-map-compression': 'web3dev1337/hytopia-map-compression',
+  'testproject': null, // No GitHub URL known
+
+  // Bead ID prefixes (optional - if beads use different prefixes)
+  // 'hq': 'web3dev1337/hytopia-map-compression',
+};
+
+/**
+ * Get GitHub repo for a bead based on its ID or rig
+ */
+function getGitHubRepoForBead(beadId) {
+  if (!beadId) return null;
+
+  // Try to match by bead prefix (e.g., "hq-123" → "hq")
+  const prefixMatch = beadId.match(/^([a-z]+)-/i);
+  if (prefixMatch) {
+    const prefix = prefixMatch[1].toLowerCase();
+    if (GITHUB_REPOS[prefix]) return GITHUB_REPOS[prefix];
+  }
+
+  // Try to match by rig name directly
+  for (const [key, repo] of Object.entries(GITHUB_REPOS)) {
+    if (repo && beadId.toLowerCase().includes(key.toLowerCase())) {
+      return repo;
+    }
+  }
+
+  // Default: try the first available repo
+  for (const repo of Object.values(GITHUB_REPOS)) {
+    if (repo) return repo;
+  }
+
+  return null;
+}
 
 /**
  * Parse close_reason for commit/PR references and make them clickable
@@ -42,19 +72,30 @@ function parseCloseReason(text, beadId) {
   if (!text) return '';
 
   let result = escapeHtml(text);
-
-  // Try to detect the repo from context (beads often have repo in id like "hq-xxx")
-  // For now, we'll make commits/PRs clickable with a generic search link
+  const repo = getGitHubRepoForBead(beadId);
 
   // Replace commit references with links
   result = result.replace(/commit\s+([a-f0-9]{7,40})/gi, (match, hash) => {
-    // Make it a clickable link that copies the hash or searches
-    return `<a href="#" class="commit-link" data-commit="${hash}" title="Click to copy commit hash">${match}</a>`;
+    if (repo) {
+      // Link to actual GitHub commit
+      const url = `https://github.com/${repo}/commit/${hash}`;
+      return `<a href="${url}" target="_blank" class="commit-link" data-commit="${hash}" title="View on GitHub">${match}</a>`;
+    } else {
+      // Fallback: copy to clipboard
+      return `<a href="#" class="commit-link commit-copy" data-commit="${hash}" title="Click to copy">${match}</a>`;
+    }
   });
 
   // Replace PR references with links
   result = result.replace(/PR\s*#?(\d+)/gi, (match, num) => {
-    return `<a href="#" class="pr-link" data-pr="${num}" title="Pull Request #${num}">${match}</a>`;
+    if (repo) {
+      // Link to actual GitHub PR
+      const url = `https://github.com/${repo}/pull/${num}`;
+      return `<a href="${url}" target="_blank" class="pr-link" data-pr="${num}" title="View on GitHub">${match}</a>`;
+    } else {
+      // Fallback: copy to clipboard
+      return `<a href="#" class="pr-link pr-copy" data-pr="${num}" title="Click to copy">${match}</a>`;
+    }
   });
 
   return result;
@@ -96,8 +137,8 @@ export function renderWorkList(container, beads) {
     });
   });
 
-  // Add click handlers for commit links (copy to clipboard)
-  container.querySelectorAll('.commit-link').forEach(link => {
+  // Add click handlers for copy-only links (no GitHub repo configured)
+  container.querySelectorAll('.commit-copy').forEach(link => {
     link.addEventListener('click', (e) => {
       e.preventDefault();
       e.stopPropagation();
@@ -108,8 +149,7 @@ export function renderWorkList(container, beads) {
     });
   });
 
-  // Add click handlers for PR links
-  container.querySelectorAll('.pr-link').forEach(link => {
+  container.querySelectorAll('.pr-copy').forEach(link => {
     link.addEventListener('click', (e) => {
       e.preventDefault();
       e.stopPropagation();
@@ -117,6 +157,13 @@ export function renderWorkList(container, beads) {
       navigator.clipboard.writeText(`#${pr}`).then(() => {
         showCopyToast(`Copied: PR #${pr}`);
       });
+    });
+  });
+
+  // For links with actual GitHub URLs, just prevent card click propagation
+  container.querySelectorAll('.commit-link:not(.commit-copy), .pr-link:not(.pr-copy)').forEach(link => {
+    link.addEventListener('click', (e) => {
+      e.stopPropagation(); // Don't trigger card click, but let the link navigate
     });
   });
 }
