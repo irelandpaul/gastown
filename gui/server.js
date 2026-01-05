@@ -806,6 +806,81 @@ app.get('/api/bead/:beadId', async (req, res) => {
   }
 });
 
+// Get related PRs/commits for a bead
+app.get('/api/bead/:beadId/links', async (req, res) => {
+  const { beadId } = req.params;
+  const links = { prs: [], commits: [] };
+
+  try {
+    // Get list of rig names
+    const rigsResult = await executeGT(['rig', 'list']);
+    if (!rigsResult.success) {
+      return res.json(links);
+    }
+
+    // Parse rig names from output (lines with exactly 2 spaces before name, no colon)
+    const rigNames = rigsResult.data
+      .split('\n')
+      .filter(line => line.match(/^  \S/) && !line.includes(':'))
+      .map(line => line.trim());
+
+    console.log(`[Links] Found rigs: ${rigNames.join(', ')}`);
+
+    // Get repo URL for each rig by checking git remote
+    for (const rigName of rigNames) {
+      const rigPath = path.join(GT_ROOT, rigName, 'mayor', 'rig');
+
+      try {
+        const { stdout } = await execAsync(`git -C "${rigPath}" remote get-url origin`, { timeout: 5000 });
+        const repoUrl = stdout.trim();
+
+        // Extract owner/repo from GitHub URL
+        const repoMatch = repoUrl.match(/github\.com[/:]([^/]+\/[^/.\s]+)/);
+        if (!repoMatch) continue;
+        const repo = repoMatch[1].replace(/\.git$/, '');
+
+        // Search for PRs (title, body, or branch containing bead ID)
+        try {
+          const { stdout: prOutput } = await execAsync(
+            `gh pr list --repo ${repo} --state all --limit 10 --json number,title,url,state,headRefName,body`,
+            { timeout: 10000 }
+          );
+          const prs = JSON.parse(prOutput || '[]');
+
+          for (const pr of prs) {
+            // Check if PR is related to this bead
+            const isRelated =
+              (pr.title && pr.title.includes(beadId)) ||
+              (pr.headRefName && pr.headRefName.includes(beadId)) ||
+              (pr.body && pr.body.includes(beadId));
+
+            if (isRelated) {
+              links.prs.push({
+                repo,
+                number: pr.number,
+                title: pr.title,
+                url: pr.url,
+                state: pr.state,
+                branch: pr.headRefName,
+              });
+            }
+          }
+        } catch (ghErr) {
+          console.log(`[Links] Could not search ${repo}: ${ghErr.message}`);
+        }
+      } catch (gitErr) {
+        // Skip rigs without git repos
+        console.log(`[Links] Could not get repo for ${rigName}: ${gitErr.message}`);
+      }
+    }
+
+    res.json(links);
+  } catch (err) {
+    console.error('[Links] Error:', err);
+    res.json(links);
+  }
+});
+
 // Nudge agent
 app.post('/api/nudge', async (req, res) => {
   const { target, message } = req.body;

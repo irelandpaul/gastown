@@ -1152,6 +1152,19 @@ function showBeadDetailModal(beadId, bead) {
           </div>
         </div>
       ` : ''}
+
+      <div class="bead-detail-section bead-links-section" id="bead-links-section">
+        <h4>
+          <span class="material-icons">link</span>
+          Related Links
+        </h4>
+        <div class="bead-links-content" id="bead-links-content">
+          <div class="loading-inline">
+            <span class="material-icons spinning">sync</span>
+            Searching for PRs...
+          </div>
+        </div>
+      </div>
     </div>
     <div class="modal-footer">
       <button class="btn btn-secondary" data-modal-close>Close</button>
@@ -1207,6 +1220,55 @@ function showBeadDetailModal(beadId, bead) {
       });
     });
   });
+
+  // Fetch and display related links (PRs, commits)
+  fetchBeadLinks(beadId, modal);
+}
+
+async function fetchBeadLinks(beadId, modal) {
+  const linksContent = modal.querySelector('#bead-links-content');
+  if (!linksContent) return;
+
+  try {
+    const links = await api.getBeadLinks(beadId);
+
+    if (!links.prs || links.prs.length === 0) {
+      linksContent.innerHTML = `
+        <div class="no-links">
+          <span class="material-icons">link_off</span>
+          No related PRs found
+        </div>
+      `;
+      return;
+    }
+
+    const prHtml = links.prs.map(pr => {
+      const stateIcon = pr.state === 'MERGED' ? 'merge' :
+                        pr.state === 'CLOSED' ? 'close' :
+                        'git_merge';
+      const stateClass = pr.state.toLowerCase();
+      return `
+        <a href="${pr.url}" target="_blank" class="pr-link pr-state-${stateClass}">
+          <span class="material-icons">${stateIcon}</span>
+          <span class="pr-info">
+            <span class="pr-title">${escapeHtml(pr.title)}</span>
+            <span class="pr-meta">${pr.repo} #${pr.number}</span>
+          </span>
+          <span class="material-icons open-icon">open_in_new</span>
+        </a>
+      `;
+    }).join('');
+
+    linksContent.innerHTML = prHtml;
+  } catch (err) {
+    console.error('[Links] Error fetching links:', err);
+    linksContent.innerHTML = `
+      <div class="no-links">
+        <span class="material-icons">error_outline</span>
+        Could not fetch links
+      </div>
+    `;
+  }
 }
 
 /**

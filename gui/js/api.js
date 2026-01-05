@@ -135,6 +135,10 @@ export const api = {
     return this.get(`/api/bead/${encodeURIComponent(beadId)}`);
   },
 
+  getBeadLinks(beadId) {
+    return this.get(`/api/bead/${encodeURIComponent(beadId)}/links`);
+  },
+
   // === Work Actions ===
   markWorkDone(beadId, summary) {
     return this.post(`/api/work/${encodeURIComponent(beadId)}/done`, { summary });
