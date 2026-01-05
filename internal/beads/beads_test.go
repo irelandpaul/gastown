@@ -139,6 +139,18 @@ func TestIntegration(t *testing.T) {
 		dir = parent
 	}
 
+	if os.Getenv("BEADS_NO_DB") == "true" || os.Getenv("BD_NO_DB") == "true" {
+		t.Skip("beads no-db mode enabled; skipping integration test")
+	}
+
+	dbPath := os.Getenv("BEADS_DB")
+	if dbPath == "" {
+		dbPath = filepath.Join(dir, ".beads", "beads.db")
+	}
+	if _, err := os.Stat(dbPath); err != nil {
+		t.Skip("beads database not found; run 'bd init' or set BEADS_DB")
+	}
+
 	b := New(dir)
 
 	// Test List
