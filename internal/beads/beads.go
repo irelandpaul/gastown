@@ -297,7 +297,8 @@ func (b *Beads) run(args ...string) ([]byte, error) {
 	err := cmd.Run()
 	if err != nil {
 		stderrStr := stderr.String()
-		if strings.Contains(stderrStr, "Database out of sync with JSONL") {
+		stdoutStr := stdout.String()
+		if strings.Contains(stderrStr, "Database out of sync with JSONL") || strings.Contains(stdoutStr, "Database out of sync with JSONL") {
 			syncCmd := Command(b.workDir, "--no-daemon", "sync", "--import-only")
 			if syncErr := syncCmd.Run(); syncErr == nil {
 				stdout.Reset()
@@ -322,7 +323,11 @@ func (b *Beads) run(args ...string) ([]byte, error) {
 			}
 		}
 		if err != nil {
-			return nil, b.wrapError(err, stderr.String(), args)
+			errOut := stderrStr
+			if errOut == "" {
+				errOut = stdoutStr
+			}
+			return nil, b.wrapError(err, errOut, args)
 		}
 	}
 
