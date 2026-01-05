@@ -542,14 +542,19 @@ app.post('/api/mail', async (req, res) => {
   }
 });
 
-// Get all mail from feed (for observability)
+// Get all mail from feed (for observability) with pagination
 app.get('/api/mail/all', async (req, res) => {
   try {
+    // Pagination params (default: page 1, 50 items per page)
+    const page = Math.max(1, parseInt(req.query.page, 10) || 1);
+    const limit = Math.min(200, Math.max(1, parseInt(req.query.limit, 10) || 50));
+    const offset = (page - 1) * limit;
+
     const feedPath = path.join(GT_ROOT, '.feed.jsonl');
     try {
       await fsPromises.access(feedPath);
     } catch {
-      return res.json([]);
+      return res.json({ items: [], total: 0, page, limit, hasMore: false });
     }
 
     const fileStream = fs.createReadStream(feedPath);
@@ -584,7 +589,19 @@ app.get('/api/mail/all', async (req, res) => {
 
     // Sort newest first
     mailEvents.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
-    res.json(mailEvents);
+
+    // Apply pagination
+    const total = mailEvents.length;
+    const paginatedItems = mailEvents.slice(offset, offset + limit);
+    const hasMore = offset + limit < total;
+
+    res.json({
+      items: paginatedItems,
+      total,
+      page,
+      limit,
+      hasMore
+    });
   } catch (err) {
     console.error('[API] Failed to read feed for mail:', err);
     res.status(500).json({ error: 'Failed to read mail feed' });
