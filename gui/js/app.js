@@ -456,7 +456,12 @@ function setupMailFilters() {
 }
 
 async function loadAgents() {
-  showLoadingState(elements.agentGrid, 'Loading agents...');
+  // Show loading state only if we don't have cached data
+  const hasCache = state.getAgents().length > 0;
+  if (!hasCache) {
+    showLoadingState(elements.agentGrid, 'Loading agents...');
+  }
+
   try {
     const response = await api.getAgents();
     // Combine agents and polecats into a flat list
@@ -471,30 +476,45 @@ async function loadAgents() {
     state.setAgents(allAgents);
   } catch (err) {
     console.error('[App] Failed to load agents:', err);
-    elements.agentGrid.innerHTML = `
-      <div class="empty-state">
-        <span class="material-icons">error_outline</span>
-        <p>Failed to load agents</p>
-      </div>
-    `;
+    // Only show error if we don't have cached data
+    if (!hasCache) {
+      elements.agentGrid.innerHTML = `
+        <div class="empty-state">
+          <span class="material-icons">error_outline</span>
+          <p>Failed to load agents</p>
+        </div>
+      `;
+    }
   }
 }
 
 async function loadRigs() {
-  showLoadingState(elements.rigList, 'Loading rigs...');
+  // Show loading state only if we don't have cached data
+  const hasCache = state.getRigs().length > 0;
+  if (!hasCache) {
+    showLoadingState(elements.rigList, 'Loading rigs...');
+  } else {
+    // Show cached data immediately
+    renderRigList(elements.rigList, state.getRigs());
+  }
+
   try {
     // Get rigs from status (has more details than /api/rigs)
     const status = await api.getStatus();
     const rigs = status.rigs || [];
+    state.setStatus(status); // Update state
     renderRigList(elements.rigList, rigs);
   } catch (err) {
     console.error('[App] Failed to load rigs:', err);
-    elements.rigList.innerHTML = `
-      <div class="empty-state">
-        <span class="material-icons">error_outline</span>
-        <p>Failed to load rigs</p>
-      </div>
-    `;
+    // Only show error if we don't have cached data
+    if (!hasCache) {
+      elements.rigList.innerHTML = `
+        <div class="empty-state">
+          <span class="material-icons">error_outline</span>
+          <p>Failed to load rigs</p>
+        </div>
+      `;
+    }
   }
 }
 
