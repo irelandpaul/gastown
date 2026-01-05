@@ -46,6 +46,12 @@ const CACHE_TTL = {
   doctor: 30000,      // 30 seconds for doctor
 };
 
+const mailFeedCache = {
+  mtimeMs: 0,
+  size: 0,
+  events: null,
+};
+
 function getCached(key) {
   const entry = cache.get(key);
   if (entry && Date.now() < entry.expires) {
@@ -287,6 +293,54 @@ function parseJSON(output) {
   } catch {
     return null;
   }
+}
+
+async function loadMailFeedEvents(feedPath) {
+  const stats = await fsPromises.stat(feedPath);
+  if (mailFeedCache.events &&
+      mailFeedCache.mtimeMs === stats.mtimeMs &&
+      mailFeedCache.size === stats.size) {
+    return mailFeedCache.events;
+  }
+
+  const fileStream = fs.createReadStream(feedPath);
+  const rl = readline.createInterface({
+    input: fileStream,
+    crlfDelay: Infinity
+  });
+
+  const mailEvents = [];
+  for await (const line of rl) {
+    if (!line.trim()) continue;
+    try {
+      const event = JSON.parse(line);
+      if (event.type === 'mail') {
+        // Transform feed event to mail-like object
+        mailEvents.push({
+          id: `feed-${event.ts}-${mailEvents.length}`,
+          from: event.actor || 'unknown',
+          to: event.payload?.to || 'unknown',
+          subject: event.payload?.subject || event.summary || '(No Subject)',
+          body: event.payload?.body || event.payload?.message || '',
+          timestamp: event.ts,
+          read: true, // Feed mail is historical
+          priority: event.payload?.priority || 'normal',
+          feedEvent: true, // Mark as feed-sourced
+        });
+      }
+    } catch {
+      // Skip malformed lines
+    }
+  }
+
+  // Sort newest first
+  mailEvents.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+
+  mailFeedCache.events = mailEvents;
+  mailFeedCache.mtimeMs = stats.mtimeMs;
+  mailFeedCache.size = stats.size;
+
+  return mailEvents;
 }
 
 // ============= REST API Endpoints =============
@@ -622,41 +676,11 @@ app.get('/api/mail/all', async (req, res) => {
     try {
       await fsPromises.access(feedPath);
     } catch {
+      mailFeedCache.events = null;
       return res.json({ items: [], total: 0, page, limit, hasMore: false });
     }
 
-    const fileStream = fs.createReadStream(feedPath);
-    const rl = readline.createInterface({
-      input: fileStream,
-      crlfDelay: Infinity
-    });
-
-    const mailEvents = [];
-    for await (const line of rl) {
-      if (!line.trim()) continue;
-      try {
-        const event = JSON.parse(line);
-        if (event.type === 'mail') {
-          // Transform feed event to mail-like object
-          mailEvents.push({
-            id: `feed-${event.ts}-${mailEvents.length}`,
-            from: event.actor || 'unknown',
-            to: event.payload?.to || 'unknown',
-            subject: event.payload?.subject || event.summary || '(No Subject)',
-            body: event.payload?.body || event.payload?.message || '',
-            timestamp: event.ts,
-            read: true, // Feed mail is historical
-            priority: event.payload?.priority || 'normal',
-            feedEvent: true, // Mark as feed-sourced
-          });
-        }
-      } catch (e) {
-        // Skip malformed lines
-      }
-    }
-
-    // Sort newest first
-    mailEvents.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+    const mailEvents = await loadMailFeedEvents(feedPath);
 
     // Apply pagination
     const total = mailEvents.length;
