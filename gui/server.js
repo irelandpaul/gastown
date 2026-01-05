@@ -630,8 +630,17 @@ app.post('/api/beads', async (req, res) => {
     return res.status(400).json({ error: 'Title is required' });
   }
 
+  // Map word priorities to bd's P0-P4 format
+  const priorityMap = {
+    'critical': 'P0',
+    'high': 'P1',
+    'normal': 'P2',
+    'low': 'P3',
+    'backlog': 'P4',
+  };
+
   // Build bd new command
-  // bd new "title" --description "..." --priority high --label bug --label enhancement
+  // bd new "title" --description "..." --priority P1 --label bug --label enhancement
   // Use --no-daemon to avoid timeout issues
   const args = ['--no-daemon', 'new', title];
 
@@ -639,7 +648,8 @@ app.post('/api/beads', async (req, res) => {
     args.push('--description', description);
   }
   if (priority && priority !== 'normal') {
-    args.push('--priority', priority);
+    const mappedPriority = priorityMap[priority] || priority;
+    args.push('--priority', mappedPriority);
   }
   if (labels && Array.isArray(labels) && labels.length > 0) {
     labels.forEach(label => {
