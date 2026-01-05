@@ -64,3 +64,25 @@ export function formatNumber(num) {
   if (num === null || num === undefined) return '0';
   return num.toLocaleString();
 }
+
+/**
+ * Wrap an async operation with button loading state
+ * Shows spinner while operation runs, restores original content when done.
+ * @param {HTMLButtonElement} btn - Button element
+ * @param {Function} asyncFn - Async function to execute
+ * @returns {Promise<any>} - Result of the async function
+ */
+export async function withButtonLoading(btn, asyncFn) {
+  if (!btn) return asyncFn();
+
+  const originalContent = btn.innerHTML;
+  btn.innerHTML = '<span class="material-icons spinning">sync</span>';
+  btn.disabled = true;
+
+  try {
+    return await asyncFn();
+  } finally {
+    btn.innerHTML = originalContent;
+    btn.disabled = false;
+  }
+}
