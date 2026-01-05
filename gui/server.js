@@ -812,6 +812,17 @@ app.get('/api/bead/:beadId/links', async (req, res) => {
   const links = { prs: [], commits: [] };
 
   try {
+    // Get bead details to check close time for matching
+    const beadResult = await executeBD(['show', beadId, '--json']);
+    let beadClosedAt = null;
+    if (beadResult.success) {
+      const beadData = parseJSON(beadResult.data);
+      const bead = Array.isArray(beadData) ? beadData[0] : beadData;
+      if (bead && bead.closed_at) {
+        beadClosedAt = new Date(bead.closed_at);
+      }
+    }
+
     // Get list of rig names
     const rigsResult = await executeGT(['rig', 'list']);
     if (!rigsResult.success) {
@@ -839,20 +850,30 @@ app.get('/api/bead/:beadId/links', async (req, res) => {
         if (!repoMatch) continue;
         const repo = repoMatch[1].replace(/\.git$/, '');
 
-        // Search for PRs (title, body, or branch containing bead ID)
+        // Search for PRs (title, body, branch containing bead ID, or polecat PRs near close time)
         try {
           const { stdout: prOutput } = await execAsync(
-            `gh pr list --repo ${repo} --state all --limit 10 --json number,title,url,state,headRefName,body`,
+            `gh pr list --repo ${repo} --state all --limit 20 --json number,title,url,state,headRefName,body,createdAt,updatedAt`,
             { timeout: 10000 }
           );
           const prs = JSON.parse(prOutput || '[]');
 
           for (const pr of prs) {
             // Check if PR is related to this bead
-            const isRelated =
+            let isRelated =
               (pr.title && pr.title.includes(beadId)) ||
               (pr.headRefName && pr.headRefName.includes(beadId)) ||
               (pr.body && pr.body.includes(beadId));
+
+            // Also match polecat PRs created/updated within 1 hour of bead close time
+            if (!isRelated && beadClosedAt && pr.headRefName && pr.headRefName.startsWith('polecat/')) {
+              const prUpdated = new Date(pr.updatedAt || pr.createdAt);
+              const timeDiff = Math.abs(beadClosedAt - prUpdated);
+              const oneHour = 60 * 60 * 1000;
+              if (timeDiff < oneHour) {
+                isRelated = true;
+              }
+            }
 
             if (isRelated) {
               links.prs.push({
