@@ -26,6 +26,7 @@ import { startOnboarding, shouldShowOnboarding, resetOnboarding } from './compon
 
 // DOM Elements
 const elements = {
+  loadingOverlay: document.getElementById('loading-overlay'),
   townName: document.getElementById('town-name'),
   connectionStatus: document.getElementById('connection-status'),
   mailBadge: document.getElementById('mail-badge'),
@@ -299,12 +300,29 @@ async function loadInitialData() {
 
     elements.statusMessage.textContent = 'Ready';
 
+    // Hide loading overlay
+    hideLoadingOverlay();
+
     // Background preload of other data (don't await, let it load in background)
     preloadBackgroundData();
   } catch (err) {
     console.error('[App] Failed to load initial data:', err);
     elements.statusMessage.textContent = 'Error loading data';
     showToast('Failed to load data', 'error');
+
+    // Hide loading overlay even on error
+    hideLoadingOverlay();
+  }
+}
+
+// Hide the loading overlay
+function hideLoadingOverlay() {
+  if (elements.loadingOverlay) {
+    elements.loadingOverlay.classList.add('hidden');
+    // Remove from DOM after transition
+    setTimeout(() => {
+      elements.loadingOverlay.style.display = 'none';
+    }, 300);
   }
 }
 
