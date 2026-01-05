@@ -343,7 +343,40 @@ app.post('/api/sling', async (req, res) => {
     broadcast({ type: 'work_slung', data: jsonData || responseData });
     res.json({ success: true, data: jsonData || responseData, raw: output });
   } else {
-    res.status(500).json({ error: result.error || 'Sling failed - no work attached' });
+    // Check for common errors and provide helpful messages
+    const errorMsg = result.error || '';
+
+    // Formula not found error
+    const formulaMatch = errorMsg.match(/formula '([^']+)' not found/);
+    if (formulaMatch) {
+      const formulaName = formulaMatch[1];
+      return res.status(400).json({
+        error: `Formula '${formulaName}' not found`,
+        errorType: 'formula_missing',
+        formula: formulaName,
+        hint: `Create the formula at ~/.beads/formulas/${formulaName}.toml or try a different quality level`,
+        fix: {
+          action: 'create_formula',
+          formula: formulaName,
+          command: `mkdir -p ~/.beads/formulas && cat > ~/.beads/formulas/${formulaName}.toml`
+        }
+      });
+    }
+
+    // Bead not found error
+    if (errorMsg.includes('bead') && errorMsg.includes('not found')) {
+      return res.status(400).json({
+        error: 'Bead not found',
+        errorType: 'bead_missing',
+        hint: 'The issue/bead ID does not exist. Check the ID or create a new bead.',
+        fix: {
+          action: 'search_beads',
+          command: 'bd list'
+        }
+      });
+    }
+
+    res.status(500).json({ error: errorMsg || 'Sling failed - no work attached' });
   }
 });
 

@@ -29,8 +29,15 @@ export const api = {
     const response = await fetch(url, config);
 
     if (!response.ok) {
-      const error = await response.json().catch(() => ({ error: response.statusText }));
-      throw new Error(error.error || 'Request failed');
+      const errorData = await response.json().catch(() => ({ error: response.statusText }));
+      // Create error with message but also attach the full error data
+      const error = new Error(errorData.error || 'Request failed');
+      // Attach structured error data for better error handling
+      if (errorData.errorType) {
+        error.errorType = errorData.errorType;
+        error.errorData = errorData;
+      }
+      throw error;
     }
 
     return response.json();

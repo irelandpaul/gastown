@@ -7072,3 +7072,64 @@ a:focus-visible,
   height: 1px;
   background: var(--border-default);
 }
+
+/* === Sling Error States === */
+.sling-error {
+  display: flex;
+  gap: var(--space-md);
+  padding: var(--space-md);
+  margin: var(--space-md) 0;
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  border-radius: var(--radius-md);
+}
+
+.sling-error-icon {
+  flex-shrink: 0;
+}
+
+.sling-error-icon .material-icons {
+  color: #ef4444;
+  font-size: 24px;
+}
+
+.sling-error-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.sling-error-title {
+  font-weight: 600;
+  color: #ef4444;
+  margin-bottom: var(--space-xs);
+}
+
+.sling-error-message {
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+  margin-bottom: var(--space-xs);
+}
+
+.sling-error-message code {
+  background: var(--bg-tertiary);
+  padding: 2px 6px;
+  border-radius: var(--radius-sm);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+}
+
+.sling-error-hint {
+  color: var(--text-tertiary);
+  font-size: var(--text-xs);
+  margin-bottom: var(--space-sm);
+}
+
+.sling-error-actions {
+  display: flex;
+  gap: var(--space-sm);
+  margin-top: var(--space-sm);
+}
+
+.sling-error-actions .btn {
+  font-size: var(--text-xs);
+}

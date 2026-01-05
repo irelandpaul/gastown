@@ -491,6 +491,10 @@ async function handleSlingSubmit(form) {
     return;
   }
 
+  // Clear any previous error
+  const errorContainer = form.querySelector('.sling-error');
+  if (errorContainer) errorContainer.remove();
+
   try {
     const result = await api.sling(bead, target, { molecule, quality });
     showToast(`Work slung: ${bead} → ${target}`, 'success');
@@ -499,7 +503,70 @@ async function handleSlingSubmit(form) {
     // Dispatch event
     document.dispatchEvent(new CustomEvent('work:slung', { detail: result }));
   } catch (err) {
-    showToast(`Failed to sling work: ${err.message}`, 'error');
+    // Check if we have structured error data from the API
+    if (err.errorType && err.errorData) {
+      showSlingError(form, err.errorData);
+    } else {
+      showToast(`Failed to sling work: ${err.message}`, 'error');
+    }
+  }
+}
+
+function showSlingError(form, errorData) {
+  // Remove existing error
+  const existing = form.querySelector('.sling-error');
+  if (existing) existing.remove();
+
+  const errorDiv = document.createElement('div');
+  errorDiv.className = 'sling-error';
+
+  if (errorData.errorType === 'formula_missing') {
+    errorDiv.innerHTML = `
+      <div class="sling-error-icon">
+        <span class="material-icons">warning</span>
+      </div>
+      <div class="sling-error-content">
+        <div class="sling-error-title">Formula Not Found</div>
+        <div class="sling-error-message">
+          <code>${errorData.formula}</code> doesn't exist yet.
+        </div>
+        <div class="sling-error-hint">${errorData.hint}</div>
+        <div class="sling-error-actions">
+          <button type="button" class="btn btn-secondary btn-sm" onclick="this.closest('form').querySelector('[name=quality]').value = ''; this.closest('.sling-error').remove(); showToast('Quality cleared - try again', 'info');">
+            <span class="material-icons">remove_circle</span>
+            Clear Quality & Retry
+          </button>
+        </div>
+      </div>
+    `;
+  } else if (errorData.errorType === 'bead_missing') {
+    errorDiv.innerHTML = `
+      <div class="sling-error-icon">
+        <span class="material-icons">search_off</span>
+      </div>
+      <div class="sling-error-content">
+        <div class="sling-error-title">Bead Not Found</div>
+        <div class="sling-error-message">${errorData.hint}</div>
+      </div>
+    `;
+  } else {
+    errorDiv.innerHTML = `
+      <div class="sling-error-icon">
+        <span class="material-icons">error</span>
+      </div>
+      <div class="sling-error-content">
+        <div class="sling-error-title">Sling Failed</div>
+        <div class="sling-error-message">${errorData.error || 'Unknown error'}</div>
+      </div>
+    `;
+  }
+
+  // Insert before submit button
+  const submitBtn = form.querySelector('button[type="submit"]');
+  if (submitBtn?.parentElement) {
+    submitBtn.parentElement.insertBefore(errorDiv, submitBtn);
+  } else {
+    form.appendChild(errorDiv);
   }
 }
 
