@@ -58,6 +58,32 @@ function setCache(key, data, ttl) {
   cache.set(key, { data, expires: Date.now() + ttl });
 }
 
+// Rig config cache TTL (5 minutes - rig configs rarely change)
+const RIG_CONFIG_TTL = 300000;
+
+/**
+ * Get rig configuration with caching
+ * @param {string} rigName - Name of the rig
+ * @returns {Promise<Object|null>} - Rig config or null if not found
+ */
+async function getRigConfig(rigName) {
+  const cacheKey = `rig-config:${rigName}`;
+  const cached = getCached(cacheKey);
+  if (cached !== null) return cached;
+
+  try {
+    const rigConfigPath = path.join(GT_ROOT, rigName, 'config.json');
+    const rigConfigContent = await fsPromises.readFile(rigConfigPath, 'utf8');
+    const config = JSON.parse(rigConfigContent);
+    setCache(cacheKey, config, RIG_CONFIG_TTL);
+    return config;
+  } catch (e) {
+    // Config not found or invalid - cache null to avoid repeated reads
+    setCache(cacheKey, null, 60000); // Cache null for 1 minute
+    return null;
+  }
+}
+
 // Cache cleanup interval - removes expired entries to prevent memory leaks
 const CACHE_CLEANUP_INTERVAL = 60000; // 1 minute
 setInterval(() => {
@@ -239,14 +265,10 @@ app.get('/api/status', async (req, res) => {
     if (data) {
       // Enhance rigs with running state from tmux and git_url from config
       for (const rig of data.rigs || []) {
-        // Try to read rig config to get git_url
-        try {
-          const rigConfigPath = path.join(GT_ROOT, rig.name, 'config.json');
-          const rigConfigContent = await fsPromises.readFile(rigConfigPath, 'utf8');
-          const rigConfig = JSON.parse(rigConfigContent);
+        // Get git_url from cached rig config
+        const rigConfig = await getRigConfig(rig.name);
+        if (rigConfig) {
           rig.git_url = rigConfig.git_url || null;
-        } catch (e) {
-          // Config not found or invalid, continue
         }
 
         for (const hook of rig.hooks || []) {
@@ -1710,13 +1732,9 @@ app.get('/api/github/prs', async (req, res) => {
     // Enrich rigs with git_url from config.json (not in raw status)
     for (const rig of rigs) {
       if (!rig.git_url) {
-        try {
-          const rigConfigPath = path.join(GT_ROOT, rig.name, 'config.json');
-          const rigConfigContent = await fsPromises.readFile(rigConfigPath, 'utf8');
-          const rigConfig = JSON.parse(rigConfigContent);
+        const rigConfig = await getRigConfig(rig.name);
+        if (rigConfig) {
           rig.git_url = rigConfig.git_url || null;
-        } catch (e) {
-          // Config not found or invalid
         }
       }
     }
@@ -1803,13 +1821,9 @@ app.get('/api/github/issues', async (req, res) => {
     // Enrich rigs with git_url from config.json
     for (const rig of rigs) {
       if (!rig.git_url) {
-        try {
-          const rigConfigPath = path.join(GT_ROOT, rig.name, 'config.json');
-          const rigConfigContent = await fsPromises.readFile(rigConfigPath, 'utf8');
-          const rigConfig = JSON.parse(rigConfigContent);
+        const rigConfig = await getRigConfig(rig.name);
+        if (rigConfig) {
           rig.git_url = rigConfig.git_url || null;
-        } catch (e) {
-          // Config not found
         }
       }
     }
