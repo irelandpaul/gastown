@@ -262,6 +262,14 @@ async function handleNewConvoySubmit(form) {
     .map(s => s.trim())
     .filter(Boolean);
 
+  // Show loading state
+  const submitBtn = form.querySelector('button[type="submit"]');
+  const originalText = submitBtn?.innerHTML;
+  if (submitBtn) {
+    submitBtn.disabled = true;
+    submitBtn.innerHTML = '<span class="material-icons spinning">sync</span> Creating...';
+  }
+
   try {
     const result = await api.createConvoy(name, issues, notify);
     showToast(`Convoy "${name}" created`, 'success');
@@ -271,6 +279,11 @@ async function handleNewConvoySubmit(form) {
     document.dispatchEvent(new CustomEvent('convoy:created', { detail: result }));
   } catch (err) {
     showToast(`Failed to create convoy: ${err.message}`, 'error');
+  } finally {
+    if (submitBtn) {
+      submitBtn.disabled = false;
+      submitBtn.innerHTML = originalText;
+    }
   }
 }
 
@@ -300,6 +313,14 @@ async function handleNewBeadSubmit(form) {
     .map(s => s.trim())
     .filter(Boolean);
 
+  // Show loading state
+  const submitBtn = form.querySelector('button[type="submit"]');
+  const originalText = submitBtn?.innerHTML;
+  if (submitBtn) {
+    submitBtn.disabled = true;
+    submitBtn.innerHTML = '<span class="material-icons spinning">sync</span> Creating...';
+  }
+
   try {
     const result = await api.createBead(title, { description, priority, labels });
 
@@ -321,6 +342,11 @@ async function handleNewBeadSubmit(form) {
     }
   } catch (err) {
     showToast(`Failed to create bead: ${err.message}`, 'error');
+  } finally {
+    if (submitBtn) {
+      submitBtn.disabled = false;
+      submitBtn.innerHTML = originalText;
+    }
   }
 }
 
@@ -885,6 +911,14 @@ async function handleNewRigSubmit(form) {
     return;
   }
 
+  // Show loading state
+  const submitBtn = form.querySelector('button[type="submit"]');
+  const originalText = submitBtn?.innerHTML;
+  if (submitBtn) {
+    submitBtn.disabled = true;
+    submitBtn.innerHTML = '<span class="material-icons spinning">sync</span> Adding...';
+  }
+
   try {
     const result = await api.addRig(name, url);
 
@@ -898,6 +932,11 @@ async function handleNewRigSubmit(form) {
     }
   } catch (err) {
     showToast(`Failed to add rig: ${err.message}`, 'error');
+  } finally {
+    if (submitBtn) {
+      submitBtn.disabled = false;
+      submitBtn.innerHTML = originalText;
+    }
   }
 }
 
@@ -912,12 +951,25 @@ async function handleMailComposeSubmit(form) {
     return;
   }
 
+  // Show loading state
+  const submitBtn = form.querySelector('button[type="submit"]');
+  const originalText = submitBtn?.innerHTML;
+  if (submitBtn) {
+    submitBtn.disabled = true;
+    submitBtn.innerHTML = '<span class="material-icons spinning">sync</span> Sending...';
+  }
+
   try {
     await api.sendMail(to, subject, message, priority);
     showToast('Mail sent', 'success');
     closeAllModals();
   } catch (err) {
     showToast(`Failed to send mail: ${err.message}`, 'error');
+  } finally {
+    if (submitBtn) {
+      submitBtn.disabled = false;
+      submitBtn.innerHTML = originalText;
+    }
   }
 }
 
@@ -1015,12 +1067,25 @@ function showNudgeModal(agentId) {
     e.preventDefault();
     const message = form.querySelector('[name="message"]')?.value;
 
+    // Show loading state
+    const submitBtn = form.querySelector('button[type="submit"]');
+    const originalText = submitBtn?.innerHTML;
+    if (submitBtn) {
+      submitBtn.disabled = true;
+      submitBtn.innerHTML = '<span class="material-icons spinning">sync</span> Sending...';
+    }
+
     try {
       await api.nudge(agentId, message);
       showToast('Nudge sent', 'success');
       closeAllModals();
     } catch (err) {
       showToast(`Failed to nudge agent: ${err.message}`, 'error');
+    } finally {
+      if (submitBtn) {
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = originalText;
+      }
     }
   });
 }
@@ -1399,6 +1464,14 @@ function showEscalationModal(convoyId, convoyName) {
       return;
     }
 
+    // Show loading state
+    const submitBtn = form.querySelector('button[type="submit"]');
+    const originalText = submitBtn?.innerHTML;
+    if (submitBtn) {
+      submitBtn.disabled = true;
+      submitBtn.innerHTML = '<span class="material-icons spinning">sync</span> Escalating...';
+    }
+
     try {
       await api.escalate(convoyId, reason, priority);
       showToast('Issue escalated to Mayor', 'success');
@@ -1410,6 +1483,11 @@ function showEscalationModal(convoyId, convoyName) {
       }));
     } catch (err) {
       showToast(`Failed to escalate: ${err.message}`, 'error');
+    } finally {
+      if (submitBtn) {
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = originalText;
+      }
     }
   });
 }
