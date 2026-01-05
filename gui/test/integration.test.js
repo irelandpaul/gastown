@@ -33,12 +33,22 @@ describe('Comprehensive Integration Tests', () => {
 
   beforeEach(async () => {
     page = await browser.newPage();
-    await page.goto(BASE_URL, { waitUntil: 'networkidle0' });
+    await page.addInitScript(() => {
+      localStorage.setItem('gastown-onboarding-complete', 'true');
+      localStorage.setItem('gastown-onboarding-skipped', 'true');
+      localStorage.setItem('gastown-tutorial-complete', 'true');
+    });
+    await page.goto(BASE_URL, { waitUntil: 'domcontentloaded' });
+    await page.waitForSelector('#app-header', { timeout: 15000 });
+    await page.waitForFunction(() => {
+      const town = document.getElementById('town-name');
+      return !!window.gastown && town && town.textContent && town.textContent.trim() !== 'Loading...';
+    }, { timeout: 15000 });
     // Wait for initial WebSocket connection
     await page.waitForFunction(() => {
       return document.querySelector('.connection-status')?.textContent?.includes('Connected') ||
              document.body.innerText.includes('Test Town');
-    }, { timeout: 5000 });
+    }, { timeout: 15000 });
   });
 
   afterEach(async () => {
