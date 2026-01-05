@@ -114,13 +114,14 @@ function broadcast(data) {
   });
 }
 
-// Quote arguments that contain spaces
+// Safely quote shell arguments to prevent command injection
+// Escapes all shell metacharacters and wraps in single quotes
 function quoteArg(arg) {
-  if (arg.includes(' ') || arg.includes('"') || arg.includes("'")) {
-    // Escape any existing double quotes and wrap in double quotes
-    return `"${arg.replace(/"/g, '\\"')}"`;
-  }
-  return arg;
+  if (arg === null || arg === undefined) return "''";
+  const str = String(arg);
+  // Single quotes are the safest - only need to escape single quotes themselves
+  // Replace each ' with '\'' (end quote, escaped quote, start quote)
+  return "'" + str.replace(/'/g, "'\\''") + "'";
 }
 
 // Get running tmux sessions for polecats
@@ -150,7 +151,8 @@ async function getRunningPolecats() {
 // Get polecat output from tmux (last N lines)
 async function getPolecatOutput(sessionName, lines = 50) {
   try {
-    const { stdout } = await execAsync(`tmux capture-pane -t ${sessionName} -p 2>/dev/null | tail -${lines}`);
+    const safeLines = Math.max(1, Math.min(10000, parseInt(lines, 10) || 50));
+    const { stdout } = await execAsync(`tmux capture-pane -t ${quoteArg(sessionName)} -p 2>/dev/null | tail -${safeLines}`);
     return stdout.trim();
   } catch {
     return null;
@@ -860,7 +862,7 @@ app.get('/api/bead/:beadId/links', async (req, res) => {
       const rigPath = path.join(GT_ROOT, rigName, 'mayor', 'rig');
 
       try {
-        const { stdout } = await execAsync(`git -C "${rigPath}" remote get-url origin`, { timeout: 5000 });
+        const { stdout } = await execAsync(`git -C ${quoteArg(rigPath)} remote get-url origin`, { timeout: 5000 });
         const repoUrl = stdout.trim();
 
         // Extract owner/repo from GitHub URL
@@ -871,7 +873,7 @@ app.get('/api/bead/:beadId/links', async (req, res) => {
         // Search for PRs (title, body, branch containing bead ID, or polecat PRs near close time)
         try {
           const { stdout: prOutput } = await execAsync(
-            `gh pr list --repo ${repo} --state all --limit 20 --json number,title,url,state,headRefName,body,createdAt,updatedAt`,
+            `gh pr list --repo ${quoteArg(repo)} --state all --limit 20 --json number,title,url,state,headRefName,body,createdAt,updatedAt`,
             { timeout: 10000 }
           );
           const prs = JSON.parse(prOutput || '[]');
@@ -1085,7 +1087,7 @@ app.post('/api/polecat/:rig/:name/stop', async (req, res) => {
 
   try {
     // Kill the tmux session
-    await execAsync(`tmux kill-session -t ${sessionName} 2>/dev/null`);
+    await execAsync(`tmux kill-session -t ${quoteArg(sessionName)} 2>/dev/null`);
     broadcast({ type: 'agent_stopped', data: { rig, name, session: sessionName } });
     res.json({ success: true, message: `Stopped ${rig}/${name}` });
   } catch (err) {
@@ -1110,7 +1112,7 @@ app.post('/api/polecat/:rig/:name/restart', async (req, res) => {
   try {
     // First try to kill existing session (ignore errors)
     try {
-      await execAsync(`tmux kill-session -t ${sessionName} 2>/dev/null`);
+      await execAsync(`tmux kill-session -t ${quoteArg(sessionName)} 2>/dev/null`);
     } catch {
       // Ignore - session might not exist
     }
@@ -1445,7 +1447,7 @@ app.post('/api/service/:name/down', async (req, res) => {
       // Try killing tmux session directly
       const sessionName = `gt-${name}`;
       try {
-        await execAsync(`tmux kill-session -t ${sessionName} 2>/dev/null`);
+        await execAsync(`tmux kill-session -t ${quoteArg(sessionName)} 2>/dev/null`);
         broadcast({ type: 'service_stopped', data: { service: name } });
         res.json({ success: true, service: name, message: `${name} stopped via tmux` });
       } catch {
