@@ -256,10 +256,15 @@ async function executeGT(args, options = {}) {
 
     return { success: true, data: String(stdout || '').trim() };
   } catch (error) {
+    // Combine stdout and stderr for error output
+    const output = String(error.stdout || '') + '\n' + String(error.stderr || '');
+    const trimmedOutput = output.trim();
+
     // Commands like 'gt doctor' exit with code 1 when issues found, but still have useful output
-    if (error.stdout) {
+    if (trimmedOutput) {
       console.warn(`[GT] Command exited with error but has output: ${error.message}`);
-      return { success: true, data: String(error.stdout || '').trim(), exitCode: error.code };
+      if (trimmedOutput) console.warn(`[GT] Output:\n${trimmedOutput}`);
+      return { success: true, data: trimmedOutput, exitCode: error.code };
     }
     console.error(`[GT] Error: ${error.message}`);
     return { success: false, error: error.message };
@@ -1340,7 +1345,8 @@ app.post('/api/rigs', async (req, res) => {
     return res.status(400).json({ error: 'Name and URL are required' });
   }
 
-  const result = await executeGT(['rig', 'add', name, url]);
+  // Rig operations can take 90+ seconds for large repos
+  const result = await executeGT(['rig', 'add', name, url], { timeout: 120000 });
 
   // Check if rig add actually succeeded (not just "has output")
   // If the output contains "Error:", it's a real failure even if success=true
