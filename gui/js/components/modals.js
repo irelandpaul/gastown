@@ -315,20 +315,14 @@ async function handleNewBeadSubmit(form) {
     .map(s => s.trim())
     .filter(Boolean);
 
-  // Show loading state
-  const submitBtn = form.querySelector('button[type="submit"]');
-  const originalText = submitBtn?.innerHTML;
-  if (submitBtn) {
-    submitBtn.disabled = true;
-    submitBtn.innerHTML = '<span class="material-icons spinning">sync</span> Creating...';
-  }
+  // Close modal immediately and show progress toast
+  showToast(`Creating work item "${title}"...`, 'info');
+  closeAllModals();
 
-  try {
-    const result = await api.createBead(title, { description, priority, labels });
-
+  // Run in background (non-blocking)
+  api.createBead(title, { description, priority, labels }).then(result => {
     if (result.success) {
-      showToast(`Bead "${title}" created: ${result.bead_id}`, 'success');
-      closeAllModals();
+      showToast(`Work item created: ${result.bead_id}`, 'success');
 
       // Dispatch event for UI refresh
       document.dispatchEvent(new CustomEvent('bead:created', { detail: result }));
@@ -340,16 +334,11 @@ async function handleNewBeadSubmit(form) {
         }, 100);
       }
     } else {
-      showToast(`Failed to create bead: ${result.error}`, 'error');
+      showToast(`Failed to create work item: ${result.error}`, 'error');
     }
-  } catch (err) {
-    showToast(`Failed to create bead: ${err.message}`, 'error');
-  } finally {
-    if (submitBtn) {
-      submitBtn.disabled = false;
-      submitBtn.innerHTML = originalText;
-    }
-  }
+  }).catch(err => {
+    showToast(`Failed to create work item: ${err.message}`, 'error');
+  });
 }
 
 // === Sling Modal ===
@@ -524,39 +513,20 @@ async function handleSlingSubmit(form) {
     return;
   }
 
-  // Clear any previous error
-  const errorContainer = form.querySelector('.sling-error');
-  if (errorContainer) errorContainer.remove();
+  // Close modal immediately and show progress toast
+  showToast(`Slinging ${bead} → ${target}...`, 'info');
+  closeAllModals();
 
-  // Show loading state on submit button
-  const submitBtn = form.querySelector('button[type="submit"]');
-  const originalText = submitBtn?.innerHTML;
-  if (submitBtn) {
-    submitBtn.disabled = true;
-    submitBtn.innerHTML = '<span class="material-icons spinning">sync</span> Slinging...';
-  }
-
-  try {
-    const result = await api.sling(bead, target, { molecule, quality });
+  // Run in background (non-blocking)
+  api.sling(bead, target, { molecule, quality }).then(result => {
     showToast(`Work slung: ${bead} → ${target}`, 'success');
-    closeAllModals();
-
     // Dispatch event
     document.dispatchEvent(new CustomEvent('work:slung', { detail: result }));
-  } catch (err) {
-    // Check if we have structured error data from the API
-    if (err.errorType && err.errorData) {
-      showSlingError(form, err.errorData);
-    } else {
-      showToast(`Failed to sling work: ${err.message}`, 'error');
-    }
-  } finally {
-    // Restore button state
-    if (submitBtn) {
-      submitBtn.disabled = false;
-      submitBtn.innerHTML = originalText;
-    }
-  }
+  }).catch(err => {
+    // For sling errors, we can't show the fancy error in the modal (it's closed)
+    // So just show a toast with the error message
+    showToast(`Failed to sling work: ${err.message || 'Unknown error'}`, 'error');
+  });
 }
 
 function showSlingError(form, errorData) {
@@ -914,33 +884,22 @@ async function handleNewRigSubmit(form) {
     return;
   }
 
-  // Show loading state
-  const submitBtn = form.querySelector('button[type="submit"]');
-  const originalText = submitBtn?.innerHTML;
-  if (submitBtn) {
-    submitBtn.disabled = true;
-    submitBtn.innerHTML = '<span class="material-icons spinning">sync</span> Adding...';
-  }
+  // Close modal immediately and show progress toast
+  showToast(`Adding rig "${name}"...`, 'info');
+  closeAllModals();
 
-  try {
-    const result = await api.addRig(name, url);
-
+  // Run in background (non-blocking)
+  api.addRig(name, url).then(result => {
     if (result.success) {
       showToast(`Rig "${name}" added successfully`, 'success');
-      closeAllModals();
       // Trigger refresh
       document.dispatchEvent(new CustomEvent('rigs:refresh'));
     } else {
       showToast(`Failed to add rig: ${result.error}`, 'error');
     }
-  } catch (err) {
+  }).catch(err => {
     showToast(`Failed to add rig: ${err.message}`, 'error');
-  } finally {
-    if (submitBtn) {
-      submitBtn.disabled = false;
-      submitBtn.innerHTML = originalText;
-    }
-  }
+  });
 }
 
 async function handleMailComposeSubmit(form) {
