@@ -762,6 +762,7 @@ app.post('/api/beads', async (req, res) => {
 
   // Map word priorities to bd's P0-P4 format
   const priorityMap = {
+    'urgent': 'P0',      // Urgent/Critical = highest priority
     'critical': 'P0',
     'high': 'P1',
     'normal': 'P2',
