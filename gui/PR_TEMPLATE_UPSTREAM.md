@@ -413,7 +413,14 @@ This was built with Claude Code over the course of a week. I ran out of Claude M
 
 **Demo Video:**
 
-A demo video showing the GUI in action is available (combined_twitter_video.mp4). *(Can be uploaded to PR if helpful)*
+Watch the GUI in action: [combined_twitter_video.mp4](https://github.com/web3dev1337/gastown/blob/feature/loading-image/gui/demo/combined_twitter_video.mp4)
+
+The video demonstrates:
+- Rig creation workflow
+- Work item management
+- Sling operations
+- Real-time UI updates
+- Toast notifications
 
 **What This Means:**
 
