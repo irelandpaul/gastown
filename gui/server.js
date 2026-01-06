@@ -1346,7 +1346,9 @@ app.post('/api/rigs', async (req, res) => {
     const agentRoles = ['witness', 'refinery'];
     for (const role of agentRoles) {
       const beadResult = await executeBD([
-        'create', '--type', 'agent',
+        'create',
+        `Setup ${role} for ${name}`,  // Title is required
+        '--type', 'agent',
         '--agent-rig', name,
         '--role-type', role,
         '--silent'
