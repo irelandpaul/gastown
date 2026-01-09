@@ -147,8 +147,8 @@ func TestIntegration(t *testing.T) {
 	if dbPath == "" {
 		dbPath = filepath.Join(dir, ".beads", "beads.db")
 	}
-	if _, err := os.Stat(dbPath); err != nil {
-		t.Skip("beads database not found; run 'bd init' or set BEADS_DB")
+	if _, err := os.Stat(dbPath); os.IsNotExist(err) {
+		t.Skip("no beads.db found (JSONL-only repo)")
 	}
 
 	// Ensure DB is in sync with JSONL to avoid stale-data failures.
