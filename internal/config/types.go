@@ -38,7 +38,7 @@ type TownSettings struct {
 	Version int    `json:"version"` // schema version
 
 	// DefaultAgent is the name of the agent preset to use by default.
-	// Can be a built-in preset ("claude", "gemini", "codex")
+	// Can be a built-in preset ("claude", "gemini", "codex", "cursor", "auggie", "amp")
 	// or a custom agent name defined in settings/agents.json.
 	// Default: "claude"
 	DefaultAgent string `json:"default_agent,omitempty"`
@@ -190,11 +190,16 @@ type RigSettings struct {
 	Runtime    *RuntimeConfig    `json:"runtime,omitempty"`     // LLM runtime settings (deprecated: use Agent)
 
 	// Agent selects which agent preset to use for this rig.
-	// Can be a built-in preset ("claude", "gemini", "codex")
+	// Can be a built-in preset ("claude", "gemini", "codex", "cursor", "auggie", "amp")
 	// or a custom agent defined in settings/agents.json.
 	// If empty, uses the town's default_agent setting.
 	// Takes precedence over Runtime if both are set.
 	Agent string `json:"agent,omitempty"`
+
+	// Agents defines custom agent configurations or overrides for this rig.
+	// Similar to TownSettings.Agents but applies to this rig only.
+	// Allows per-rig custom agents for polecats and crew members.
+	Agents map[string]*RuntimeConfig `json:"agents,omitempty"`
 }
 
 // CrewConfig represents crew workspace settings for a rig.
@@ -220,8 +225,9 @@ type RuntimeConfig struct {
 	Command string `json:"command,omitempty"`
 
 	// Args are additional command-line arguments.
-	// Default: ["--dangerously-skip-permissions"]
-	Args []string `json:"args,omitempty"`
+	// Default: ["--dangerously-skip-permissions"] for built-in agents.
+	// Empty array [] means no args (not "use defaults").
+	Args []string `json:"args"`
 
 	// InitialPrompt is an optional first message to send after startup.
 	// For claude, this is passed as the prompt argument.

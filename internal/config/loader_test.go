@@ -879,6 +879,18 @@ func TestRuntimeConfigBuildCommandWithPrompt(t *testing.T) {
 }
 
 func TestBuildAgentStartupCommand(t *testing.T) {
+	// BuildAgentStartupCommand auto-detects town root from cwd when rigPath is empty.
+	// Use a temp directory to ensure we exercise the fallback default config path.
+	origWD, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
+	tmpWD := t.TempDir()
+	if err := os.Chdir(tmpWD); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.Chdir(origWD) })
+
 	// Test without rig config (uses defaults)
 	cmd := BuildAgentStartupCommand("witness", "gastown/witness", "", "")
 
@@ -1557,4 +1569,95 @@ func TestSaveTownSettings(t *testing.T) {
 			t.Errorf("Agents count = %d, want %d", len(loaded.Agents), len(original.Agents))
 		}
 	})
+}
+
+// TestLookupAgentConfigWithRigSettings verifies that lookupAgentConfig checks
+// rig-level agents first, then town-level agents, then built-ins.
+func TestLookupAgentConfigWithRigSettings(t *testing.T) {
+	tests := []struct {
+		name            string
+		rigSettings     *RigSettings
+		townSettings    *TownSettings
+		expectedCommand string
+		expectedFrom    string
+	}{
+		{
+			name: "rig-custom-agent",
+			rigSettings: &RigSettings{
+				Agent: "default-rig-agent",
+				Agents: map[string]*RuntimeConfig{
+					"rig-custom-agent": {
+						Command: "custom-rig-cmd",
+						Args:    []string{"--rig-flag"},
+					},
+				},
+			},
+			townSettings: &TownSettings{
+				Agents: map[string]*RuntimeConfig{
+					"town-custom-agent": {
+						Command: "custom-town-cmd",
+						Args:    []string{"--town-flag"},
+					},
+				},
+			},
+			expectedCommand: "custom-rig-cmd",
+			expectedFrom:    "rig",
+		},
+		{
+			name: "town-custom-agent",
+			rigSettings: &RigSettings{
+				Agents: map[string]*RuntimeConfig{
+					"other-rig-agent": {
+						Command: "other-rig-cmd",
+					},
+				},
+			},
+			townSettings: &TownSettings{
+				Agents: map[string]*RuntimeConfig{
+					"town-custom-agent": {
+						Command: "custom-town-cmd",
+						Args:    []string{"--town-flag"},
+					},
+				},
+			},
+			expectedCommand: "custom-town-cmd",
+			expectedFrom:    "town",
+		},
+		{
+			name:            "unknown-agent",
+			rigSettings:     nil,
+			townSettings:    nil,
+			expectedCommand: "claude",
+			expectedFrom:    "builtin",
+		},
+		{
+			name: "claude",
+			rigSettings: &RigSettings{
+				Agent: "claude",
+			},
+			townSettings: &TownSettings{
+				Agents: map[string]*RuntimeConfig{
+					"claude": {
+						Command: "custom-claude",
+					},
+				},
+			},
+			expectedCommand: "custom-claude",
+			expectedFrom:    "town",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			rc := lookupAgentConfig(tt.name, tt.townSettings, tt.rigSettings)
+
+			if rc == nil {
+				t.Errorf("lookupAgentConfig(%s) returned nil", tt.name)
+			}
+
+			if rc.Command != tt.expectedCommand {
+				t.Errorf("lookupAgentConfig(%s).Command = %s, want %s", tt.name, rc.Command, tt.expectedCommand)
+			}
+		})
+	}
 }
