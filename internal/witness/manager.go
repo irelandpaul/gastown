@@ -251,12 +251,9 @@ func (m *Manager) Start(foreground bool, agentOverride string, envOverrides []st
 }
 
 func (m *Manager) roleConfig() (*beads.RoleConfig, error) {
-	// Role beads (hq-*-role) are stored at town level, not rig level.
-	// Use town beads path to look up role configuration.
-	townRoot := m.townRoot()
-	townBeadsPath := filepath.Join(townRoot, ".beads")
-	beadsDir := beads.ResolveBeadsDir(townBeadsPath)
-	bd := beads.NewWithBeadsDir(townBeadsPath, beadsDir)
+	beadsPath := m.rig.BeadsPath()
+	beadsDir := beads.ResolveBeadsDir(beadsPath)
+	bd := beads.NewWithBeadsDir(beadsPath, beadsDir)
 	roleConfig, err := bd.GetRoleConfig(beads.RoleBeadIDTown("witness"))
 	if err != nil {
 		return nil, fmt.Errorf("loading witness role config: %w", err)
