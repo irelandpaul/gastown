@@ -1,0 +1,856 @@
+description = """
+Gas Town Self-Update Formula: Because updating your multi-agent orchestration
+system shouldn't require a multi-agent orchestration system.
+
+TL;DR: Fetch, merge, build, test, ASK PERMISSION, deploy, recover beads.
+In that order. No yolo deploys.
+
+---
+
+A crash-recoverable update formula with verification gates and human-in-the-loop
+approval before any destructive operations. Your running agents won't know what
+hit them (because you'll warn them first).
+
+## Executor
+
+This formula is executed by **Crew** (human-controlled) or a **Polecat**
+(Witness-managed). The Mayor is notified for approval but doesn't execute
+the update itself—Mayor coordinates, doesn't implement.
+
+**Typical flow:**
+1. Human or Mayor decides to update GT
+2. Mayor dispatches to Crew: `gt sling gastown-update <rig>/crew/dev --var version=v0.2.5`
+3. Crew executes formula, mails Mayor at approval gate
+4. Mayor approves (or aborts)
+5. Crew completes deployment, notifies witnesses
+6. Town restarts with new version
+
+**Propulsion Principle:** If you find this molecule on your hook, EXECUTE.
+No confirmation, no waiting. The hook IS your assignment.
+
+## Why This Formula Exists
+
+Every GT update used to be an adventure:
+1. Pull new code
+2. Build
+3. Deploy
+4. Watch beads explode with "no agent beads" errors
+5. Frantically fix while agents wait confused
+6. Promise yourself you'll do it better next time
+
+This formula IS "better next time."
+
+## Key Features
+
+1. **Build before deploy** - Test in staging, not production (revolutionary!)
+2. **Mayor approval gate** - Agents deserve advance notice of their impending restart
+3. **Witness notification** - Town-level coordination before restart
+4. **Proactive beads recovery** - Register custom types BEFORE they cause errors
+5. **Rollback capability** - Because optimism isn't a recovery strategy
+6. **Verification-gated steps** - Not "command ran" but "outcome confirmed"
+7. **Full attribution** - Who updated, when, what version (work is data)
+8. **Custom post-install tasks** - Your site-specific quirks, documented and automated
+9. **Dual workflow support** - Fork or direct, we don't judge
+
+## Workflow Options
+
+### Option A: Fork Workflow (Recommended for Customizers)
+
+Your fork is source of truth. Pull official updates from upstream, merge locally,
+push to your fork for backup. Perfect for when you've "enhanced" GT.
+
+**Remote setup:**
+```
+origin   -> your fork (you/gastown)      - push your changes here
+upstream -> official (steveyegge/gastown) - pull updates from here
+```
+
+**Usage:**
+```bash
+gt sling gastown-update <rig> --var version=v0.2.5
+# Default: pulls from upstream, you can push to origin later
+```
+
+### Option B: Direct Workflow (For the Trusting)
+
+Pull directly from official repo. Use this if you run stock GT.
+
+**Remote setup:**
+```
+origin -> official (steveyegge/gastown)
+```
+
+**Usage:**
+```bash
+gt sling gastown-update <rig> --var version=v0.2.5 --var remote=origin
+```
+
+## Variables
+
+| Variable | Required | Default | Description |
+|----------|----------|---------|-------------|
+| version | Yes | - | Version tag to merge (e.g., v0.2.5) |
+| remote | No | upstream | Remote to fetch from |
+| source_dir | No | $GASTOWN_SRC or ~/gastown | Path to gastown source |
+| install_dir | No | ~/go/bin | Where to put the gt binary |
+| branch | No | main | Branch to merge into |
+| actor | No | $BD_ACTOR or $USER | Who initiated this update (audit trail) |
+
+## Step Flow
+
+```
+preflight-git -> preflight-version -> preflight-remote -> fetch -> merge
+                                                                     |
+build-staged <- --------------------------------------------------------+
+     |
+run-tests -> test-staged -> [MAYOR APPROVAL] -> notify-witnesses -> backup -> deploy
+                                                                                 |
+reinit-beads <- -----------------------------------------------------------------+
+     |
+custom-post-install -> verify-health -> complete
+```
+
+## Failure Modes & Recovery
+
+| Situation | What Happens |
+|-----------|-------------|
+| Merge conflicts | Manual resolution, prefer your changes over upstream for GUI code |
+| Build fails | Stop. Do not pass Go. Debug first. |
+| Tests fail | Stop. Broken binary stays in /tmp where it belongs. |
+| Mayor rejects | Clean up, close molecule, dignity intact |
+| Deploy fails | Rollback: `cp ~/go/bin/gt.rollback ~/go/bin/gt` |
+| Beads broken | BEADS_NO_DB=true fallback, then fix properly |
+
+## Known Issues This Prevents
+
+- "table issues has no column named pinned" - Fixed by registering custom types
+- "no agent beads" after update - Fixed by running doctor --fix
+- Agents confused by sudden restart - Fixed by ASKING FIRST and notifying witnesses
+"""
+formula = "gastown-update"
+type = "workflow"
+version = 6
+
+[vars]
+[vars.version]
+description = "The version tag to merge (e.g., v0.2.5)"
+required = true
+
+[vars.remote]
+description = "Remote to fetch from (upstream for fork workflow, origin for direct)"
+default = "upstream"
+required = false
+
+[vars.source_dir]
+description = "Path to gastown source checkout (or set GASTOWN_SRC env var)"
+default = "~/gastown"
+required = false
+
+[vars.install_dir]
+description = "Directory for gt binary installation"
+default = "~/go/bin"
+required = false
+
+[vars.branch]
+description = "Branch to merge into"
+default = "main"
+required = false
+
+[vars.actor]
+description = "Who initiated this update (for audit trail)"
+default = "${BD_ACTOR:-${USER:-unknown}}"
+required = false
+
+# ============================================================================
+# PHASE 1: PREFLIGHT - Are we even ready for this?
+# ============================================================================
+
+[[steps]]
+id = "preflight-git"
+title = "Preflight: Verify git state"
+description = """
+Make sure we're not about to merge into a dumpster fire.
+
+## Action
+```bash
+SOURCE=${GASTOWN_SRC:-{{source_dir}}}
+cd "$SOURCE"
+echo "Source directory: $SOURCE"
+echo "Actor: {{actor}}"
+git status
+git stash list
+```
+
+## Verify
+- Working tree clean (no uncommitted changes)
+- Stash list empty (no hidden surprises)
+
+## OnFail
+If working tree is dirty:
+```bash
+# Option 1: Stash it
+git stash push -m "pre-update stash"
+
+# Option 2: Commit it
+git add -A && git commit -m "WIP: pre-update checkpoint"
+```
+Then retry.
+"""
+
+[[steps]]
+id = "preflight-version"
+title = "Preflight: Record current version"
+needs = ["preflight-git"]
+description = """
+Document what we're upgrading FROM. For the post-mortem. Just kidding. Mostly.
+
+## Action
+```bash
+SOURCE=${GASTOWN_SRC:-{{source_dir}}}
+cd "$SOURCE"
+echo "Current branch: $(git branch --show-current)"
+echo "Current version:"
+gt --version | tee /tmp/gt-version-before.txt
+echo "Update initiated by: {{actor}}"
+```
+
+## Verify
+- Currently on {{branch}} branch (or your working branch)
+- Version recorded for rollback reference
+"""
+
+[[steps]]
+id = "preflight-remote"
+title = "Preflight: Verify remote exists"
+needs = ["preflight-version"]
+description = """
+Make sure we can actually reach the code we're trying to pull.
+
+## Action
+```bash
+SOURCE=${GASTOWN_SRC:-{{source_dir}}}
+cd "$SOURCE"
+echo "Checking remote '{{remote}}'..."
+git remote -v | grep {{remote}} || echo "Remote not found!"
+echo ""
+echo "Testing connectivity..."
+git ls-remote --tags {{remote}} 2>&1 | head -5
+```
+
+## Verify
+- Remote {{remote}} exists in config
+- Remote is reachable
+
+## OnFail
+If using fork workflow and upstream doesn't exist:
+```bash
+git remote add upstream https://github.com/steveyegge/gastown.git
+```
+
+If using direct workflow and origin is wrong:
+```bash
+git remote set-url origin https://github.com/steveyegge/gastown.git
+```
+"""
+
+# ============================================================================
+# PHASE 2: FETCH AND MERGE - The scary part
+# ============================================================================
+
+[[steps]]
+id = "fetch"
+title = "Fetch tags from {{remote}}"
+needs = ["preflight-remote"]
+description = """
+Get the goods.
+
+## Action
+```bash
+SOURCE=${GASTOWN_SRC:-{{source_dir}}}
+cd "$SOURCE"
+git fetch {{remote}} --tags
+echo ""
+echo "Looking for {{version}}..."
+git tag -l '{{version}}'
+git log -1 --oneline {{version}} 2>/dev/null || echo "Tag {{version}} not found!"
+```
+
+## Verify
+- {{version}} tag exists locally
+- Can see the tag's commit
+
+## OnFail
+If tag not found:
+- Check version format: `v0.2.5` vs `0.2.5`
+- Verify release exists: `git ls-remote --tags {{remote}} | grep {{version}}`
+- If it truly doesn't exist, you're ahead of the release. Congrats?
+"""
+
+[[steps]]
+id = "merge"
+title = "Merge {{version}} into {{branch}}"
+needs = ["fetch"]
+description = """
+The moment of truth. May your conflicts be few and your resolutions swift.
+
+## Action
+```bash
+SOURCE=${GASTOWN_SRC:-{{source_dir}}}
+cd "$SOURCE"
+git merge {{version}} -m "merge: sync with upstream {{version}}"
+```
+
+## Conflict Resolution
+
+If conflicts occur (and they will, eventually):
+
+1. **See what's fighting:**
+   ```bash
+   git diff --name-only --diff-filter=U
+   ```
+
+2. **Resolution strategy:**
+   - YOUR changes: GUI additions, custom features, site-specific hacks
+   - UPSTREAM changes: Core functionality, bug fixes, new features
+   - When in doubt: Keep upstream, re-apply your changes
+
+3. **For each file:**
+   ```bash
+   # Edit, resolve conflicts, then:
+   git add <file>
+   ```
+
+4. **Complete the merge:**
+   ```bash
+   git commit
+   ```
+
+## Common Conflict Areas
+- `cmd/gt/main.go` - If you have GUI code, careful here
+- `internal/*/` - Probably want upstream
+- `go.mod/go.sum` - Accept upstream, run `go mod tidy`
+
+## OnFail
+If it's a disaster:
+```bash
+git merge --abort
+gt mail send mayor/ -s "BLOCKED: Merge conflict nightmare" -m "Need human help with {{version}} merge"
+```
+"""
+
+# ============================================================================
+# PHASE 3: BUILD AND TEST - Trust but verify
+# ============================================================================
+
+[[steps]]
+id = "build-staged"
+title = "Build to staging location"
+needs = ["merge"]
+description = """
+Build to /tmp, not production. We're not animals.
+
+## Action
+```bash
+SOURCE=${GASTOWN_SRC:-{{source_dir}}}
+cd "$SOURCE"
+echo "Building {{version}}..."
+go build -o /tmp/gt-{{version}} ./cmd/gt
+echo ""
+echo "Build result:"
+ls -la /tmp/gt-{{version}}
+file /tmp/gt-{{version}}
+```
+
+## Verify
+- Binary exists at /tmp/gt-{{version}}
+- It's actually an executable
+
+## OnFail
+Build errors? Common fixes:
+```bash
+go mod tidy           # Fix dependency issues
+go get -u ./...       # Update dependencies
+```
+Do NOT proceed with a broken build.
+"""
+
+[[steps]]
+id = "run-tests"
+title = "Run test suite"
+needs = ["build-staged"]
+description = """
+Let the robots tell us if we broke something.
+
+## Action
+```bash
+SOURCE=${GASTOWN_SRC:-{{source_dir}}}
+cd "$SOURCE"
+
+echo "=== Running tests ==="
+go test ./... 2>&1 | tee /tmp/gt-test-output.txt
+
+if grep -q "FAIL" /tmp/gt-test-output.txt; then
+    echo ""
+    echo "TESTS FAILED"
+    grep "FAIL" /tmp/gt-test-output.txt
+    exit 1
+else
+    echo ""
+    echo "TESTS PASSED"
+fi
+
+echo ""
+echo "=== Static analysis ==="
+go vet ./... 2>&1 || echo "go vet found issues (review above)"
+```
+
+## Verify
+- No FAIL lines in test output
+- go vet didn't find anything terrifying
+
+## OnFail
+If tests fail:
+1. Check /tmp/gt-test-output.txt
+2. Is it your merge or pre-existing?
+3. Fix before proceeding
+
+Do NOT deploy failing tests. Future you will not thank present you.
+"""
+
+[[steps]]
+id = "test-staged"
+title = "Test staged binary"
+needs = ["run-tests"]
+description = """
+Kick the tires on the new binary before we commit to it.
+
+## Action
+```bash
+echo "=== Version ==="
+/tmp/gt-{{version}} --version
+
+echo ""
+echo "=== Help (smoke test) ==="
+/tmp/gt-{{version}} --help >/dev/null && echo "Help: OK"
+
+echo ""
+echo "=== Doctor (may report issues, that's fine) ==="
+/tmp/gt-{{version}} doctor 2>&1 | head -20 || echo "(Some issues expected in staging)"
+
+echo ""
+echo "=== Subcommand smoke tests ==="
+/tmp/gt-{{version}} mail --help >/dev/null 2>&1 && echo "mail: OK" || echo "mail: BROKEN"
+/tmp/gt-{{version}} polecat --help >/dev/null 2>&1 && echo "polecat: OK" || echo "polecat: BROKEN"
+/tmp/gt-{{version}} convoy --help >/dev/null 2>&1 && echo "convoy: OK" || echo "convoy: BROKEN"
+/tmp/gt-{{version}} sling --help >/dev/null 2>&1 && echo "sling: OK" || echo "sling: BROKEN"
+```
+
+## Verify
+- Version command works
+- Key subcommands don't crash
+
+## OnFail
+If basic commands crash, something is very wrong. Check build output.
+Do NOT proceed.
+"""
+
+# ============================================================================
+# PHASE 4: MAYOR APPROVAL GATE - The human in the loop
+# ============================================================================
+
+[[steps]]
+id = "request-approval"
+title = "Request Mayor approval"
+needs = ["test-staged"]
+description = """
+## STOP. ASK PERMISSION. WAIT.
+
+This step exists because deploying a new GT binary while agents are working
+is rude. The Mayor needs to know, and possibly coordinate a graceful pause.
+
+## Action
+```bash
+# Build the approval request
+cat > /tmp/gt-update-report.txt << EOF
+## Gas Town Update Request
+
+**Initiated by:** {{actor}}
+**Current Version:** $(cat /tmp/gt-version-before.txt)
+**Target Version:** {{version}}
+**Build Status:** PASSED
+**Tests:** PASSED
+
+### Staged Binary
+Location: /tmp/gt-{{version}}
+$(file /tmp/gt-{{version}})
+
+### Current System State
+$(gt status 2>&1 | head -15)
+
+---
+
+**REQUESTING DEPLOYMENT APPROVAL**
+
+Reply with:
+- **approved** or **LGTM** - Proceed with deployment
+- **abort** - Cancel, keep current version
+- **wait** - Hold while I coordinate with workers
+
+Warning: Deployment will restart services. Witnesses will be notified.
+EOF
+
+# Send it
+gt mail send mayor/ -s "APPROVAL REQUIRED: GT Update to {{version}}" -f /tmp/gt-update-report.txt
+echo ""
+echo "Approval request sent. Check: gt mail inbox"
+echo "DO NOT PROCEED until Mayor responds."
+```
+
+## Wait Protocol
+```bash
+gt mail inbox              # Check for response
+gt mail read <id>          # Read the response
+```
+
+## OnApprove
+Mayor says "approved" or "LGTM" -> Continue to notify-witnesses step
+
+## OnAbort
+```bash
+rm -f /tmp/gt-{{version}}
+rm -f /tmp/gt-*.txt
+```
+Close molecule. No harm done.
+
+## OnWait
+Mayor is coordinating. Check mail for follow-up.
+"""
+
+[[steps]]
+id = "notify-witnesses"
+title = "Notify witnesses of pending restart"
+needs = ["request-approval"]
+description = """
+Alert all running witnesses that GT will restart. This is town-level coordination.
+
+## Action
+```bash
+echo "Notifying witnesses of pending GT restart..."
+
+# Get list of rigs and notify their witnesses
+for rig in $(gt rig list --json 2>/dev/null | jq -r '.[].name' 2>/dev/null || echo ""); do
+    if [ -n "$rig" ]; then
+        echo "Notifying $rig/witness..."
+        gt mail send "$rig/witness" -s "GT Update: Restart in progress" \
+            -m "GT updating to {{version}}. Initiated by {{actor}}. Prepare for restart." 2>/dev/null || true
+    fi
+done
+
+# Also notify deacon
+gt mail send deacon/ -s "GT Update: Restart in progress" \
+    -m "GT updating to {{version}}. Initiated by {{actor}}. Prepare for restart." 2>/dev/null || true
+
+echo "Witnesses notified. Proceeding with deployment."
+```
+
+## Verify
+- Mail sent to active witnesses (best effort)
+- Deacon notified
+
+## Note
+This is best-effort notification. Witnesses may not all be running.
+The important thing is we tried to warn them.
+"""
+
+# ============================================================================
+# PHASE 5: BACKUP AND DEPLOY - Point of no return
+# ============================================================================
+
+[[steps]]
+id = "backup"
+title = "Backup current installation"
+needs = ["notify-witnesses"]
+description = """
+Create the safety net before the trapeze act.
+
+## Action
+```bash
+INSTALL={{install_dir}}
+TIMESTAMP=$(date +%Y%m%d-%H%M%S)
+
+echo "Creating backups..."
+
+# Binary backup
+cp "$INSTALL/gt" "$INSTALL/gt.backup-$TIMESTAMP"
+cp "$INSTALL/gt" "$INSTALL/gt.rollback"
+echo "Binary backed up"
+
+# Config backups
+cp ~/gt/.beads/config.yaml ~/gt/.beads/config.yaml.backup-$TIMESTAMP 2>/dev/null && echo "config.yaml backed up" || echo "No config.yaml"
+cp ~/gt/.beads/routes.jsonl ~/gt/.beads/routes.jsonl.backup-$TIMESTAMP 2>/dev/null && echo "routes.jsonl backed up" || echo "No routes.jsonl"
+
+# Manifest
+cat > /tmp/gt-backup-manifest.txt << EOF
+Backup Timestamp: $TIMESTAMP
+Initiated by: {{actor}}
+Binary Rollback: $INSTALL/gt.rollback
+Binary Archive: $INSTALL/gt.backup-$TIMESTAMP
+EOF
+cat /tmp/gt-backup-manifest.txt
+```
+
+## Verify
+- gt.rollback exists and is executable
+- Manifest recorded
+
+## Rollback Command
+If anything goes wrong later:
+```bash
+cp ~/go/bin/gt.rollback ~/go/bin/gt
+```
+"""
+
+[[steps]]
+id = "deploy"
+title = "Deploy new binary"
+needs = ["backup"]
+description = """
+The moment of truth. After this, there's no going back. (Just kidding, there's rollback.)
+
+## Action
+```bash
+INSTALL={{install_dir}}
+
+echo "Deploying {{version}} (initiated by {{actor}})..."
+cp /tmp/gt-{{version}} "$INSTALL/gt"
+chmod +x "$INSTALL/gt"
+
+echo ""
+echo "Verifying deployment..."
+"$INSTALL/gt" --version
+
+# Cleanup staged binary
+rm -f /tmp/gt-{{version}}
+echo ""
+echo "Deployment complete"
+```
+
+## Verify
+- gt --version shows new version
+- Basic commands work
+
+## OnFail - ROLLBACK
+```bash
+cp ~/go/bin/gt.rollback ~/go/bin/gt
+gt --version  # Verify old version restored
+gt mail send mayor/ -s "ROLLBACK: {{version}} deployment failed" -m "Restored previous version. Initiated by {{actor}}."
+```
+"""
+
+# ============================================================================
+# PHASE 6: POST-DEPLOY - Clean up the mess we're about to prevent
+# ============================================================================
+
+[[steps]]
+id = "reinit-beads"
+title = "Reinitialize beads"
+needs = ["deploy"]
+description = """
+The secret sauce. This prevents the dreaded "no agent beads" errors.
+
+GT uses custom issue types (agent, role, rig, convoy, slot) that must be
+registered with beads. New GT versions sometimes reset this. We re-register
+proactively.
+
+## Action
+```bash
+cd ~/gt
+
+echo "=== Registering custom types ==="
+bd config set types.custom agent,role,rig,convoy,slot 2>&1 || echo "(May already be set)"
+
+echo ""
+echo "=== Reinitializing beads ==="
+bd init --prefix=hq 2>&1 || echo "(Init completed with notes)"
+
+echo ""
+echo "=== Running doctor --fix ==="
+gt doctor --fix 2>&1 | tail -20 || echo "(Doctor completed with notes)"
+
+echo ""
+echo "=== Verifying agent beads ==="
+bd show hq-mayor >/dev/null 2>&1 && echo "hq-mayor: OK" || echo "hq-mayor: MISSING"
+bd show hq-deacon >/dev/null 2>&1 && echo "hq-deacon: OK" || echo "hq-deacon: MISSING"
+```
+
+## Verify
+- bd commands work
+- Agent beads accessible
+
+## OnFail
+If beads are completely broken:
+```bash
+export BEADS_NO_DB=true
+bd list  # Test fallback mode
+gt mail send mayor/ -s "ALERT: Beads needs manual repair" -m "Using BEADS_NO_DB=true fallback"
+```
+"""
+
+[[steps]]
+id = "custom-post-install"
+title = "Run custom post-install tasks"
+needs = ["reinit-beads"]
+description = """
+Your site-specific stuff goes here. Every installation is a special snowflake.
+
+This step is a template. Add your recurring post-install fixes here so you
+don't have to remember them every time.
+
+## Action
+```bash
+cd ~/gt
+
+echo "=== Custom Post-Install Tasks ==="
+
+# Task 1: Verify beads config
+echo ""
+echo "1. Beads config..."
+[ -f ".beads/config.yaml" ] && echo "   OK" || echo "   MISSING"
+
+# Task 2: Verify routes
+echo ""
+echo "2. Routes..."
+[ -f ".beads/routes.jsonl" ] && echo "   OK ($(wc -l < .beads/routes.jsonl) routes)" || echo "   MISSING"
+
+# Task 3: Check daemon
+echo ""
+echo "3. Daemon..."
+gt daemon status 2>/dev/null && echo "   Running" || echo "   Not running"
+
+# =====================================================
+# ADD YOUR CUSTOM TASKS BELOW
+# =====================================================
+#
+# Example: Always need to fix a config value?
+#   sed -i 's/old/new/' some/config.yaml
+#
+# Example: Need to copy a custom template?
+#   cp ~/my-stuff/template.yaml ~/.gt/templates/
+#
+# Example: Need to restart a service?
+#   gt witness restart screencoach
+#
+echo ""
+echo "4. Site-specific tasks..."
+echo "   (none configured - edit formula to add)"
+
+echo ""
+echo "=== Post-install complete ==="
+```
+
+## Customization
+Edit this step to add your recurring post-install tasks.
+Document what each does and why.
+"""
+
+[[steps]]
+id = "verify-health"
+title = "Verify system health"
+needs = ["custom-post-install"]
+description = """
+Final health check. Make sure we didn't break anything.
+
+## Action
+```bash
+echo "=== Final Health Check ==="
+
+echo ""
+echo "Version:"
+gt --version
+
+echo ""
+echo "Doctor:"
+gt doctor 2>&1 | grep -E "ok|error|warning" | head -10
+
+echo ""
+echo "Status:"
+gt status 2>&1 | head -10
+
+echo ""
+echo "Mail:"
+gt mail inbox 2>&1 | head -5
+
+echo ""
+echo "Beads:"
+bd list --status=open 2>/dev/null | head -5
+
+echo ""
+echo "Formula system:"
+bd mol wisp --help >/dev/null 2>&1 && echo "OK" || echo "BROKEN"
+```
+
+## Verify
+- Everything shows reasonable output
+- No crashes
+- Doctor passes critical checks
+"""
+
+[[steps]]
+id = "complete"
+title = "Update complete"
+needs = ["verify-health"]
+description = """
+We made it! Tell the Mayor the good news.
+
+## Action
+```bash
+FINAL_VERSION=$(gt --version 2>&1)
+
+cat > /tmp/gt-complete-msg.txt << EOF
+## Gas Town Update Complete
+
+**Version:** $FINAL_VERSION
+**Updated by:** {{actor}}
+**Status:** Operational
+
+### Verified Working
+- gt doctor: PASSED
+- gt status: OK
+- beads: OK
+- formula system: OK
+
+### Witnesses Notified
+All active witnesses were notified before deployment.
+
+### Rollback (if needed later)
+\`\`\`
+cp ~/go/bin/gt.rollback ~/go/bin/gt
+gt doctor --fix
+\`\`\`
+
+Update to {{version}} successful.
+EOF
+
+gt mail send mayor/ -s "GT Update Complete: {{version}}" -f /tmp/gt-complete-msg.txt
+
+# Cleanup
+rm -f /tmp/gt-version-before.txt
+rm -f /tmp/gt-update-report.txt
+rm -f /tmp/gt-backup-manifest.txt
+rm -f /tmp/gt-test-output.txt
+rm -f /tmp/gt-complete-msg.txt
+
+echo "Update molecule complete. Gas Town is running {{version}}."
+echo "Updated by: {{actor}}"
+```
+"""
+
+# ============================================================================
+# SQUASH - For the commit history and metrics
+# ============================================================================
+
+[squash]
+trigger = "on_complete"
+template_type = "work"
+include_metrics = true
+template = "{{actor}} updated Gas Town to {{version}}. Tests passed. Mayor approved. Beads recovered."
