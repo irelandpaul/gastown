@@ -105,9 +105,9 @@ build-staged <- --------------------------------------------------------+
      |
 run-tests -> test-staged -> [MAYOR APPROVAL] -> notify-witnesses -> backup -> deploy
                                                                                  |
-reinit-beads <- -----------------------------------------------------------------+
+run-migrations <- ---------------------------------------------------------------+
      |
-custom-post-install -> verify-health -> complete
+reinit-beads -> custom-post-install -> verify-health -> complete
 ```
 
 ## Failure Modes & Recovery
@@ -126,10 +126,12 @@ custom-post-install -> verify-health -> complete
 - "table issues has no column named pinned" - Fixed by registering custom types
 - "no agent beads" after update - Fixed by running doctor --fix
 - Agents confused by sudden restart - Fixed by ASKING FIRST and notifying witnesses
+- "no .beads directory found" / missing hq-*-role beads - Fixed by run-migrations step
+- Memory leak from restart loops - Prevented by ensuring role beads exist before restart
 """
 formula = "gastown-update"
 type = "workflow"
-version = 6
+version = 7
 
 [vars]
 [vars.version]
@@ -648,13 +650,113 @@ gt mail send mayor/ -s "ROLLBACK: {{version}} deployment failed" -m "Restored pr
 """
 
 # ============================================================================
-# PHASE 6: POST-DEPLOY - Clean up the mess we're about to prevent
+# PHASE 6: POST-DEPLOY - Migrations and cleanup
 # ============================================================================
+
+[[steps]]
+id = "run-migrations"
+title = "Run version migrations"
+needs = ["deploy"]
+description = """
+Run any required data migrations for the new version.
+
+Different GT versions may require migrations:
+- Bead renames (e.g., gt-*-role -> hq-*-role in v0.2.4)
+- Schema changes
+- Config format updates
+
+This step ensures your existing data is compatible with the new version.
+
+## Action
+```bash
+cd ~/gt
+NEW_VERSION="{{version}}"
+OLD_VERSION=$(cat /tmp/gt-version-before.txt 2>/dev/null | grep -oE 'v[0-9]+\.[0-9]+\.[0-9]+' || echo "unknown")
+
+echo "=== Running migrations ==="
+echo "From: $OLD_VERSION"
+echo "To:   $NEW_VERSION"
+echo ""
+
+# Track migration status
+MIGRATIONS_RUN=0
+MIGRATIONS_FAILED=0
+
+# -----------------------------------------------------------------------------
+# v0.2.4+: Role beads renamed from gt-*-role to hq-*-role
+# -----------------------------------------------------------------------------
+# This migration ensures all role beads exist with the new hq- prefix.
+# Role beads define lifecycle configuration for each agent type.
+
+echo "=== Migration: hq-*-role beads (v0.2.4+) ==="
+
+ROLES="mayor deacon witness refinery polecat crew dog"
+for role in $ROLES; do
+    NEW_ID="hq-${role}-role"
+
+    # Check if new format exists
+    if bd show "$NEW_ID" >/dev/null 2>&1; then
+        echo "  $NEW_ID: OK (exists)"
+    else
+        # Create the role bead
+        echo "  $NEW_ID: CREATING..."
+        # Capitalize first letter for title
+        TITLE=$(echo "$role" | sed 's/\b\(.\)/\u\1/')
+        if bd create --type=role --id="$NEW_ID" --title="${TITLE} Role" \
+            --description="Role definition for ${TITLE} agents" 2>/dev/null; then
+            echo "  $NEW_ID: CREATED"
+            ((MIGRATIONS_RUN++))
+        else
+            echo "  $NEW_ID: FAILED to create"
+            ((MIGRATIONS_FAILED++))
+        fi
+    fi
+done
+
+# -----------------------------------------------------------------------------
+# Future migrations go here
+# -----------------------------------------------------------------------------
+# Template for adding new migrations:
+#
+# echo ""
+# echo "=== Migration: <description> (v0.X.Y+) ==="
+# # Migration logic here
+# # Increment MIGRATIONS_RUN on success
+# # Increment MIGRATIONS_FAILED on failure
+
+echo ""
+echo "=== Migration Summary ==="
+echo "Migrations run: $MIGRATIONS_RUN"
+echo "Migrations failed: $MIGRATIONS_FAILED"
+
+if [ "$MIGRATIONS_FAILED" -gt 0 ]; then
+    echo ""
+    echo "WARNING: Some migrations failed. Review above and fix manually if needed."
+fi
+```
+
+## Verify
+- All role beads exist with hq- prefix
+- No critical migration failures
+
+## OnFail
+If migrations fail:
+1. Check error messages above
+2. Try running manually: `bd create --type=role --id=hq-<role>-role --title="<Role> Role"`
+3. If beads DB is corrupted, may need: `BEADS_NO_DB=true` fallback
+
+## Adding New Migrations
+When a new GT version requires data migration:
+1. Add a new section in the Action script
+2. Use version comparison if migration is version-specific
+3. Make migrations idempotent (safe to run multiple times)
+4. Document what the migration does and why
+"""
 
 [[steps]]
 id = "reinit-beads"
 title = "Reinitialize beads"
-needs = ["deploy"]
+needs = ["run-migrations"]
 description = """
 The secret sauce. This prevents the dreaded "no agent beads" errors.
 
