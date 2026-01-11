@@ -299,7 +299,8 @@ function handleWebSocketMessage(message) {
           service: message.data.service
         });
       }
-      api.getStatus(true); // Refresh status
+      // Refresh status and update state to re-render sidebar
+      api.getStatus().then(status => state.setStatus(status)).catch(console.error);
       break;
 
     default:
