@@ -43,6 +43,22 @@
           <button class="command-send-btn" id="mayor-command-send" title="Send to Mayor (Enter)">
             <span class="material-icons">send</span>
           </button>
+          <button class="command-view-btn" id="mayor-view-btn" title="View Mayor's Output">
+            <span class="material-icons">visibility</span>
+          </button>
+        </div>
+        <!-- Mayor Output Panel (collapsible) -->
+        <div class="mayor-output-panel" id="mayor-output-panel" style="display: none;">
+          <div class="mayor-output-header">
+            <span class="material-icons">terminal</span>
+            <span>Mayor Output</span>
+            <button class="mayor-output-close" id="mayor-output-close">
+              <span class="material-icons">close</span>
+            </button>
+          </div>
+          <div class="mayor-output-content" id="mayor-output-content">
+            <pre>Loading...</pre>
+          </div>
         </div>
       </div>
       <div class="header-center">

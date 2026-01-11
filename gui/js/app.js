@@ -952,6 +952,69 @@ mayorInput.addEventListener('keydown', (e) => {
   }
 });
 
+// Mayor output panel
+const mayorViewBtn = document.getElementById('mayor-view-btn');
+const mayorOutputPanel = document.getElementById('mayor-output-panel');
+const mayorOutputContent = document.getElementById('mayor-output-content');
+const mayorOutputClose = document.getElementById('mayor-output-close');
+let mayorOutputRefreshInterval = null;
+
+async function refreshMayorOutput() {
+  try {
+    const data = await api.getMayorOutput(80);
+    if (data.output) {
+      // Format output with some highlighting
+      let output = data.output;
+      // Highlight key phrases
+      output = output.replace(/(Done\.|Success|Created|Complete)/gi, '<span style="color: #22c55e">$1</span>');
+      output = output.replace(/(Error|Failed|Cannot)/gi, '<span style="color: #ef4444">$1</span>');
+      output = output.replace(/(Thinking…|Working|Processing)/gi, '<span style="color: #f59e0b">$1</span>');
+      output = output.replace(/(https?:\/\/[^\s]+)/g, '<a href="$1" target="_blank" style="color: #3b82f6">$1</a>');
+      mayorOutputContent.innerHTML = `<pre>${output}</pre>`;
+      // Scroll to bottom
+      mayorOutputContent.scrollTop = mayorOutputContent.scrollHeight;
+    } else {
+      mayorOutputContent.innerHTML = `<pre style="color: var(--text-tertiary)">${data.running ? 'Mayor is running but no output yet...' : 'Mayor is not running. Send a message to auto-start.'}</pre>`;
+    }
+  } catch (err) {
+    mayorOutputContent.innerHTML = `<pre style="color: #ef4444">Error loading output: ${err.message}</pre>`;
+  }
+}
+
+function showMayorOutput() {
+  mayorOutputPanel.style.display = 'block';
+  refreshMayorOutput();
+  // Auto-refresh every 2 seconds while open
+  mayorOutputRefreshInterval = setInterval(refreshMayorOutput, 2000);
+}
+
+function hideMayorOutput() {
+  mayorOutputPanel.style.display = 'none';
+  if (mayorOutputRefreshInterval) {
+    clearInterval(mayorOutputRefreshInterval);
+    mayorOutputRefreshInterval = null;
+  }
+}
+
+mayorViewBtn.addEventListener('click', () => {
+  if (mayorOutputPanel.style.display === 'none') {
+    showMayorOutput();
+  } else {
+    hideMayorOutput();
+  }
+});
+
+mayorOutputClose.addEventListener('click', hideMayorOutput);
+
+// Close panel when clicking outside
+document.addEventListener('click', (e) => {
+  if (mayorOutputPanel.style.display !== 'none' &&
+      !mayorOutputPanel.contains(e.target) &&
+      !mayorViewBtn.contains(e.target)) {
+    hideMayorOutput();
+  }
+});
+
 // Initialize on DOM ready
 if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', init);
