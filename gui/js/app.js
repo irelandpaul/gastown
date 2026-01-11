@@ -933,6 +933,8 @@ async function sendToMayor() {
         showToast('Sent to Mayor: ' + truncatedMsg, 'success');
       }
       mayorInput.value = '';
+      // Auto-open Mayor output panel so user can see what's happening
+      showMayorOutput();
     } else {
       showToast('Failed: ' + (result.error || 'Unknown error'), 'error');
     }
