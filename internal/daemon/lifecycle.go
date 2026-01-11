@@ -562,7 +562,8 @@ func (d *Daemon) syncWorkspace(workDir string) {
 	}
 
 	// Sync beads
-	bdCmd := beads.Command(workDir, "sync")
+	bdCmd := exec.Command("bd", "sync")
+	bdCmd.Dir = workDir
 	if err := bdCmd.Run(); err != nil {
 		d.logger.Printf("Warning: bd sync failed in %s: %v", workDir, err)
 	}

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"time"
@@ -12,7 +13,6 @@ import (
 	"github.com/steveyegge/gastown/internal/beads"
 	"github.com/steveyegge/gastown/internal/claude"
 	"github.com/steveyegge/gastown/internal/config"
-	"github.com/steveyegge/gastown/internal/constants"
 	"github.com/steveyegge/gastown/internal/git"
 	"github.com/steveyegge/gastown/internal/rig"
 	"github.com/steveyegge/gastown/internal/session"
@@ -171,6 +171,21 @@ func (m *Manager) Add(name string, createBranch bool) (*CrewWorker, error) {
 	if err := m.setupSharedBeads(crewPath); err != nil {
 		// Non-fatal - crew can still work, warn but don't fail
 		fmt.Printf("Warning: could not set up shared beads: %v\n", err)
+	}
+
+	// Provision PRIME.md with Gas Town context for this worker.
+	// This is the fallback if SessionStart hook fails - ensures crew workers
+	// always have GUPP and essential Gas Town context.
+	if err := beads.ProvisionPrimeMDForWorktree(crewPath); err != nil {
+		// Non-fatal - crew can still work via hook, warn but don't fail
+		fmt.Printf("Warning: could not provision PRIME.md: %v\n", err)
+	}
+
+	// Copy overlay files from .runtime/overlay/ to crew root.
+	// This allows services to have .env and other config files at their root.
+	if err := rig.CopyOverlay(m.rig.Path, crewPath); err != nil {
+		// Non-fatal - log warning but continue
+		fmt.Printf("Warning: could not copy overlay files: %v\n", err)
 	}
 
 	// NOTE: Slash commands (.claude/commands/) are provisioned at town level by gt install.
@@ -395,7 +410,8 @@ func (m *Manager) Pristine(name string) (*PristineResult, error) {
 
 // runBdSync runs bd sync in the given directory.
 func (m *Manager) runBdSync(dir string) error {
-	cmd := beads.Command(dir, "sync")
+	cmd := exec.Command("bd", "sync")
+	cmd.Dir = dir
 	return cmd.Run()
 }
 
@@ -473,33 +489,6 @@ func (m *Manager) Start(name string, opts StartOptions) error {
 		return fmt.Errorf("ensuring Claude settings: %w", err)
 	}
 
-	// Create tmux session
-	if err := t.NewSession(sessionID, worker.ClonePath); err != nil {
-		return fmt.Errorf("creating session: %w", err)
-	}
-
-	// Set environment variables (non-fatal: session works without these)
-	_ = t.SetEnvironment(sessionID, "GT_RIG", m.rig.Name)
-	_ = t.SetEnvironment(sessionID, "GT_CREW", name)
-	_ = t.SetEnvironment(sessionID, "GT_ROLE", "crew")
-
-	// Set CLAUDE_CONFIG_DIR for account selection (non-fatal)
-	if opts.ClaudeConfigDir != "" {
-		_ = t.SetEnvironment(sessionID, "CLAUDE_CONFIG_DIR", opts.ClaudeConfigDir)
-	}
-
-	// Apply rig-based theming (non-fatal: theming failure doesn't affect operation)
-	theme := tmux.AssignTheme(m.rig.Name)
-	_ = t.ConfigureGasTownSession(sessionID, theme, m.rig.Name, name, "crew")
-
-	// Set up C-b n/p keybindings for crew session cycling (non-fatal)
-	_ = t.SetCrewCycleBindings(sessionID)
-
-	// Wait for shell to be ready
-	if err := t.WaitForShellReady(sessionID, constants.ShellReadyTimeout); err != nil {
-		return fmt.Errorf("waiting for shell: %w", err)
-	}
-
 	// Build the startup beacon for predecessor discovery via /resume
 	// Pass it as Claude's initial prompt - processed when Claude is ready
 	address := fmt.Sprintf("%s/crew/%s", m.rig.Name, name)
@@ -513,21 +502,51 @@ func (m *Manager) Start(name string, opts StartOptions) error {
 		Topic:     topic,
 	})
 
-	// Start claude with environment exports and beacon as initial prompt
+	// Build startup command first
 	// SessionStart hook handles context loading (gt prime --hook)
-	claudeCmd := config.BuildCrewStartupCommand(m.rig.Name, name, m.rig.Path, beacon)
+	claudeCmd, err := config.BuildCrewStartupCommandWithAgentOverride(m.rig.Name, name, m.rig.Path, beacon, opts.AgentOverride)
+	if err != nil {
+		return fmt.Errorf("building startup command: %w", err)
+	}
 
 	// For interactive/refresh mode, remove --dangerously-skip-permissions
 	if opts.Interactive {
 		claudeCmd = strings.Replace(claudeCmd, " --dangerously-skip-permissions", "", 1)
 	}
-	if err := t.SendKeys(sessionID, claudeCmd); err != nil {
-		_ = t.KillSession(sessionID) // best-effort cleanup
-		return fmt.Errorf("starting claude: %w", err)
+
+	// Create session with command directly to avoid send-keys race condition.
+	// See: https://github.com/anthropics/gastown/issues/280
+	if err := t.NewSessionWithCommand(sessionID, worker.ClonePath, claudeCmd); err != nil {
+		return fmt.Errorf("creating session: %w", err)
 	}
 
-	// Wait for Claude to start (non-fatal: session continues even if this times out)
-	_ = t.WaitForCommand(sessionID, constants.SupportedShells, constants.ClaudeStartTimeout)
+	// Set environment variables (non-fatal: session works without these)
+	// Use centralized AgentEnv for consistency across all role startup paths
+	townRoot := filepath.Dir(m.rig.Path)
+	envVars := config.AgentEnv(config.AgentEnvConfig{
+		Role:             "crew",
+		Rig:              m.rig.Name,
+		AgentName:        name,
+		TownRoot:         townRoot,
+		BeadsDir:         beads.ResolveBeadsDir(m.rig.Path),
+		RuntimeConfigDir: opts.ClaudeConfigDir,
+		BeadsNoDaemon:    true,
+	})
+	for k, v := range envVars {
+		_ = t.SetEnvironment(sessionID, k, v)
+	}
+
+	// Apply rig-based theming (non-fatal: theming failure doesn't affect operation)
+	theme := tmux.AssignTheme(m.rig.Name)
+	_ = t.ConfigureGasTownSession(sessionID, theme, m.rig.Name, name, "crew")
+
+	// Set up C-b n/p keybindings for crew session cycling (non-fatal)
+	_ = t.SetCrewCycleBindings(sessionID)
+
+	// Note: We intentionally don't wait for Claude to start here.
+	// The session is created in detached mode, and blocking for 60 seconds
+	// serves no purpose. If the caller needs to know when Claude is ready,
+	// they can check with IsClaudeRunning().
 
 	return nil
 }
