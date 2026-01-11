@@ -82,8 +82,16 @@ function groupByRole(agents) {
     other: [],
   };
 
+  // Map API role names to our group names
+  const roleMap = {
+    'coordinator': 'mayor',
+    'health-check': 'deacon',
+  };
+
   agents.forEach(agent => {
-    const role = agent.role?.toLowerCase() || 'other';
+    const apiRole = agent.role?.toLowerCase() || 'other';
+    // Map coordinator->mayor, health-check->deacon, or use role directly
+    const role = roleMap[apiRole] || apiRole;
     if (groups[role]) {
       groups[role].push(agent);
     } else {
