@@ -295,14 +295,20 @@ async function executeGT(args, options = {}) {
     const output = String(error.stdout || '') + '\n' + String(error.stderr || '');
     const trimmedOutput = output.trim();
 
-    // Commands like 'gt doctor' exit with code 1 when issues found, but still have useful output
-    if (trimmedOutput) {
-      console.warn(`[GT] Command exited with error but has output: ${error.message}`);
-      if (trimmedOutput) console.warn(`[GT] Output:\n${trimmedOutput}`);
+    // Check if this looks like a real error (contains "Error:" or "error:")
+    const looksLikeError = /\bError:/i.test(trimmedOutput) || error.code !== 0;
+
+    // Commands like 'gt doctor' or 'gt status' exit with code 1 when issues found, but still have useful output
+    // However, if output contains "Error:" it's a real error, not just informational
+    if (trimmedOutput && !looksLikeError) {
+      console.warn(`[GT] Command exited with non-zero but has output: ${error.message}`);
+      console.warn(`[GT] Output:\n${trimmedOutput}`);
       return { success: true, data: trimmedOutput, exitCode: error.code };
     }
+
     console.error(`[GT] Error: ${error.message}`);
-    return { success: false, error: error.message };
+    if (trimmedOutput) console.error(`[GT] Output:\n${trimmedOutput}`);
+    return { success: false, error: trimmedOutput || error.message, exitCode: error.code };
   }
 }
 
@@ -815,7 +821,7 @@ app.post('/api/nudge', async (req, res) => {
       // Auto-start Mayor if requested
       if (nudgeTarget === 'mayor' && autoStart) {
         console.log(`[Nudge] Auto-starting Mayor...`);
-        const startResult = await executeGT(['mayor', 'up'], { timeout: 30000 });
+        const startResult = await executeGT(['mayor', 'start'], { timeout: 30000 });
 
         if (!startResult.success) {
           const entry = addMayorMessage(nudgeTarget, message, 'failed', 'Failed to auto-start Mayor');
