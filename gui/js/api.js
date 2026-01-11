@@ -118,8 +118,12 @@ export const api = {
     return this.get('/api/agents');
   },
 
-  nudge(target, message) {
-    return this.post('/api/nudge', { target, message });
+  nudge(target, message, autoStart = true) {
+    return this.post('/api/nudge', { target, message, autoStart });
+  },
+
+  getMayorMessages(limit = 50) {
+    return this.get(`/api/mayor/messages?limit=${limit}`);
   },
 
   // === Beads ===

@@ -20,6 +20,8 @@ const EVENT_CONFIG = {
   bead_updated: { icon: 'edit', color: '#3b82f6', label: 'Bead Updated' },
   mail: { icon: 'mail', color: '#ec4899', label: 'Mail Sent' },
   mail_received: { icon: 'mail', color: '#ec4899', label: 'Mail Received' },
+  mayor_message: { icon: 'assistant', color: '#a855f7', label: 'Mayor Message' },
+  mayor_started: { icon: 'play_circle', color: '#22c55e', label: 'Mayor Started' },
   system: { icon: 'info', color: '#6b7280', label: 'System' },
   error: { icon: 'error_outline', color: '#ef4444', label: 'Error' },
 };
@@ -156,6 +158,14 @@ function formatMessage(event) {
       const fromConfig = getAgentConfig(event.actor || event.from);
       const toConfig = getAgentConfig(event.payload?.to || event.to);
       return `${formatAgentBadge(event.actor || event.from)} → ${formatAgentBadge(event.payload?.to || event.to)}: ${escapeHtml(truncate(event.payload?.subject || event.subject || msg, 40))}`;
+
+    case 'mayor_message':
+      const statusIcon = event.status === 'sent' ? '✓' : event.status === 'auto-started' ? '⚡' : '✗';
+      const statusText = event.status === 'auto-started' ? ' (auto-started Mayor)' : '';
+      return `You → ${formatAgentBadge(event.target || 'mayor')}: "${escapeHtml(truncate(event.message || msg, 50))}"${statusText}`;
+
+    case 'mayor_started':
+      return `Mayor service started${event.autoStarted ? ' (auto-started for message)' : ''}`;
 
     default:
       // For events with actor, show the actor badge

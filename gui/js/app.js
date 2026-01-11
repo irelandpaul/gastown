@@ -274,6 +274,34 @@ function handleWebSocketMessage(message) {
       }
       break;
 
+    case 'mayor_message':
+      // Mayor message sent - add to activity feed
+      state.addEvent({
+        id: message.data.id,
+        type: 'mayor_message',
+        timestamp: message.data.timestamp,
+        target: message.data.target,
+        message: message.data.message,
+        status: message.data.status,
+        response: message.data.response
+      });
+      break;
+
+    case 'service_started':
+      // Service started (possibly Mayor auto-started)
+      if (message.data?.autoStarted) {
+        showToast(`${message.data.service} auto-started`, 'success');
+        state.addEvent({
+          id: Date.now().toString(36),
+          type: 'mayor_started',
+          timestamp: new Date().toISOString(),
+          autoStarted: true,
+          service: message.data.service
+        });
+      }
+      api.getStatus(true); // Refresh status
+      break;
+
     default:
       console.log('[WS] Unknown message type:', message.type);
   }
@@ -870,7 +898,12 @@ async function sendToMayor() {
   try {
     const result = await api.nudge('mayor', message);
     if (result.success) {
-      showToast('Sent to Mayor: ' + message.substring(0, 40) + (message.length > 40 ? '...' : ''), 'success');
+      const truncatedMsg = message.substring(0, 40) + (message.length > 40 ? '...' : '');
+      if (result.wasAutoStarted) {
+        showToast('Mayor auto-started. Sent: ' + truncatedMsg, 'success');
+      } else {
+        showToast('Sent to Mayor: ' + truncatedMsg, 'success');
+      }
       mayorInput.value = '';
     } else {
       showToast('Failed: ' + (result.error || 'Unknown error'), 'error');
