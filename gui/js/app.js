@@ -333,6 +333,9 @@ async function loadInitialData() {
     // Load convoys
     await loadConvoys();
 
+    // Load Mayor message history into activity feed
+    await loadMayorMessageHistory();
+
     // Load dashboard (default view)
     await loadDashboard();
 
@@ -405,6 +408,30 @@ async function loadConvoys() {
         <p>Failed to load convoys</p>
       </div>
     `;
+  }
+}
+
+// Load Mayor message history and add to activity feed
+async function loadMayorMessageHistory() {
+  try {
+    const messages = await api.getMayorMessages(20);
+    if (messages && messages.length > 0) {
+      // Add messages to activity feed (oldest first so newest appear at top)
+      for (const msg of messages.reverse()) {
+        state.addEvent({
+          id: msg.id,
+          type: 'mayor_message',
+          timestamp: msg.timestamp,
+          target: msg.target,
+          message: msg.message,
+          status: msg.status,
+          response: msg.response
+        });
+      }
+      console.log(`[App] Loaded ${messages.length} Mayor messages into activity feed`);
+    }
+  } catch (err) {
+    console.log('[App] No Mayor message history (may be first run):', err.message);
   }
 }
 
