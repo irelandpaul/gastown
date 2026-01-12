@@ -334,16 +334,32 @@ func runMoleculeStatus(cmd *cobra.Command, args []string) error {
 		if err == nil && agentBead != nil && agentBead.Type == "agent" {
 			status.AgentBeadID = agentBeadID
 
-			// Read hook_bead from the agent bead's database field (not description!)
+			// Read hook_bead from the agent bead's database field first.
 			// The hook_bead column is updated by `bd slot set` in UpdateAgentState.
-			// IMPORTANT: Don't use ParseAgentFieldsFromDescription - the description
-			// field may contain stale data, causing the wrong issue to be hooked.
-			if agentBead.HookBead != "" {
-				// Fetch the bead on the hook
-				hookBead, err = b.Show(agentBead.HookBead)
+			hookBeadID := agentBead.HookBead
+
+			// CROSS-DATABASE FALLBACK: If the column is empty, check the description.
+			// This handles cross-database scenarios where `bd slot set` failed because
+			// the hook bead (e.g., hq-*) is in a different database than the agent (gt-*).
+			// The description contains the hook_bead value from spawn time.
+			if hookBeadID == "" {
+				fields := beads.ParseAgentFieldsFromDescription(agentBead.Description)
+				if fields != nil && fields.HookBead != "" {
+					hookBeadID = fields.HookBead
+				}
+			}
+
+			if hookBeadID != "" {
+				// Try to fetch the bead on the hook from local database first
+				hookBead, err = b.Show(hookBeadID)
 				if err != nil {
-					// Hook bead referenced but not found - report error but continue
-					hookBead = nil
+					// Cross-database: Try fetching from town root for hq-* beads
+					townBeads := beads.New(townRoot)
+					hookBead, err = townBeads.Show(hookBeadID)
+					if err != nil {
+						// Hook bead referenced but not found - report error but continue
+						hookBead = nil
+					}
 				}
 			}
 		}
@@ -397,6 +413,21 @@ func runMoleculeStatus(cmd *cobra.Command, args []string) error {
 			if err == nil && len(inProgressBeads) > 0 {
 				// Use the first in_progress bead (should typically be only one)
 				hookedBeads = inProgressBeads
+			}
+		}
+
+		// CROSS-DATABASE: Check town root database for hooked beads.
+		// Work beads with hq-* prefix are stored in the town root, not rig databases.
+		// This ensures polecats can discover work slung from the mayor.
+		if len(hookedBeads) == 0 {
+			townBeads := beads.New(townRoot)
+			townHooked, err := townBeads.List(beads.ListOptions{
+				Status:   beads.StatusHooked,
+				Assignee: target,
+				Priority: -1,
+			})
+			if err == nil && len(townHooked) > 0 {
+				hookedBeads = townHooked
 			}
 		}
 
