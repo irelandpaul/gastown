@@ -43,7 +43,7 @@ func loadMessages(address, workDir string) ([]Message, []string, error) {
 func convertMailMessage(mm *mail.Message) Message {
 	return Message{
 		ID:         mm.ID,
-		Type:       inferMessageType(mm),
+		Type:       InferMessageType(mm),
 		Subject:    mm.Subject,
 		Body:       mm.Body,
 		From:       mm.From,
@@ -55,9 +55,9 @@ func convertMailMessage(mm *mail.Message) Message {
 	}
 }
 
-// inferMessageType infers the inbox message type from a mail message.
+// InferMessageType infers the inbox message type from a mail message.
 // Uses subject prefixes and message type to determine the category.
-func inferMessageType(mm *mail.Message) MessageType {
+func InferMessageType(mm *mail.Message) MessageType {
 	subject := strings.ToLower(mm.Subject)
 
 	// Check for explicit type markers in subject

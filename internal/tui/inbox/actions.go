@@ -160,7 +160,7 @@ func convertToInboxMessage(mm *mail.Message) Message {
 // inferTypeFromMail infers the inbox message type from a mail message.
 func inferTypeFromMail(mm *mail.Message) MessageType {
 	// Reuse the existing inference logic from data.go
-	return inferMessageType(mm)
+	return InferMessageType(mm)
 }
 
 // fetchBeadDetails fetches details for multiple bead IDs.
@@ -228,7 +228,7 @@ func archiveInfo(address, workDir string) error {
 	}
 
 	for _, mm := range messages {
-		if inferMessageType(mm) == TypeInfo {
+		if InferMessageType(mm) == TypeInfo {
 			if err := mailbox.Archive(mm.ID); err != nil {
 				// Continue on error for other messages
 				continue
