@@ -127,10 +127,7 @@ func NewWithBeadsDir(workDir, beadsDir string) *Beads {
 
 // run executes a bd command and returns stdout.
 func (b *Beads) run(args ...string) ([]byte, error) {
-	// Use --no-daemon for faster read operations (avoids daemon IPC overhead)
-	// The daemon is primarily useful for write coalescing, not reads
-	fullArgs := append([]string{"--no-daemon"}, args...)
-	cmd := exec.Command("bd", fullArgs...) //nolint:gosec // G204: bd is a trusted internal tool
+	cmd := exec.Command("bd", args...) //nolint:gosec // G204: bd is a trusted internal tool
 	cmd.Dir = b.workDir
 
 	// Set BEADS_DIR if specified (enables cross-database access)
