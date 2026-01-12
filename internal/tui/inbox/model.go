@@ -1,6 +1,8 @@
 package inbox
 
 import (
+	"time"
+
 	"github.com/charmbracelet/bubbles/help"
 	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/textarea"
@@ -75,6 +77,10 @@ type Model struct {
 	// Phase 3: Bead expansion
 	expandedBeads []ExpandedBead // Expanded bead details for current message
 	expandCursor  int            // Selected bead in expand view
+
+	// Phase 4: Notifications
+	lastFetch time.Time
+	newCount  int // New messages since last view
 }
 
 // New creates a new inbox TUI model.
@@ -99,7 +105,17 @@ func New(address, workDir string) Model {
 
 // Init initializes the model and starts fetching messages.
 func (m Model) Init() tea.Cmd {
-	return m.fetchMessages
+	return tea.Batch(m.fetchMessages, m.tick())
+}
+
+// tickMsg is sent periodically to trigger a refresh.
+type tickMsg time.Time
+
+// tick creates a command that sends a tickMsg every 30 seconds.
+func (m Model) tick() tea.Cmd {
+	return tea.Tick(30*time.Second, func(t time.Time) tea.Msg {
+		return tickMsg(t)
+	})
 }
 
 // fetchMessagesMsg is the result of fetching messages.
@@ -147,8 +163,42 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case fetchMessagesMsg:
 		m.loading = false
 		m.err = msg.err
+
+		// Phase 4: Notification logic
+		var notifyCmds []tea.Cmd
+		if m.err == nil && !m.lastFetch.IsZero() {
+			// Count new messages that weren't in the previous list
+			knownIDs := make(map[string]bool)
+			for _, msg := range m.messages {
+				knownIDs[msg.ID] = true
+			}
+
+			newCount := 0
+			for _, msg := range msg.messages {
+				if !knownIDs[msg.ID] {
+					newCount++
+					// Check for ALERT
+					if msg.Type == TypeAlert {
+						notifyCmds = append(notifyCmds, notifyAlert(msg.Subject))
+					}
+				}
+			}
+			m.newCount += newCount
+		}
+
 		m.messages = msg.messages
+		if m.lastFetch.IsZero() {
+			m.lastFetch = time.Now()
+		}
+
+		if len(notifyCmds) > 0 {
+			return m, tea.Batch(notifyCmds...)
+		}
 		return m, nil
+
+	case tickMsg:
+		// Periodic refresh
+		return m, tea.Batch(m.fetchMessages, m.tick())
 
 	case actionResultMsg:
 		if msg.success {
@@ -180,8 +230,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case tea.KeyMsg:
-		// Clear status message on any key press
+		// Clear status message and new count on any key press
 		m.statusMsg = ""
+		m.newCount = 0
 
 		// Handle mode-specific input
 		switch m.mode {

@@ -65,16 +65,33 @@ func (m Model) renderListView() string {
 
 // renderHeader renders the inbox header line.
 func (m Model) renderHeader() string {
-	// Count unread
+	// Count unread and find oldest unread
 	unread := 0
-	for _, msg := range m.messages {
+	var oldestUnread *Message
+	for i := range m.messages {
+		msg := &m.messages[i]
 		if !msg.Read {
 			unread++
+			if oldestUnread == nil || msg.Timestamp.Before(oldestUnread.Timestamp) {
+				oldestUnread = msg
+			}
 		}
 	}
 
 	title := titleStyle.Render("GT INBOX")
-	stats := dimStyle.Render(fmt.Sprintf("%d unread | %d messages", unread, len(m.messages)))
+	statsStr := fmt.Sprintf("%d unread", unread)
+	if oldestUnread != nil {
+		statsStr += fmt.Sprintf(" (oldest: %s)", oldestUnread.Age())
+	}
+	statsStr += fmt.Sprintf(" | %d messages", len(m.messages))
+
+	stats := dimStyle.Render(statsStr)
+
+	// Phase 4: New messages notification
+	if m.newCount > 0 {
+		notification := alertBadgeStyle.Render(fmt.Sprintf(" (%d NEW)", m.newCount))
+		stats += notification
+	}
 
 	// Error indicator
 	if m.err != nil {
@@ -189,10 +206,12 @@ func (m Model) renderMessageLine(msg *Message, width int, selected bool) string 
 	// Format: ▸ Subject                    Age  [Type]
 	//   or:   ○ Subject                    Age  [Type]
 
-	// Selection indicator
+	// Selection and unread indicators (Phase 4)
 	indicator := "  "
 	if selected {
 		indicator = "▸ "
+	} else if !msg.Read {
+		indicator = unreadStyle.Render("○ ")
 	}
 
 	// Age
@@ -221,6 +240,11 @@ func (m Model) renderMessageLine(msg *Message, width int, selected bool) string 
 	subject := truncateString(msg.Subject, subjectWidth)
 	// Pad subject to fixed width
 	subject = padRight(subject, subjectWidth)
+
+	// Apply age-based styling if not selected (Phase 4)
+	if !selected {
+		subject = AgeStyle(msg.Timestamp).Render(subject)
+	}
 
 	return fmt.Sprintf("%s%s  %4s  %s%s", indicator, subject, age, badge, replyIndicator)
 }

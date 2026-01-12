@@ -1,6 +1,8 @@
 package inbox
 
 import (
+	"time"
+
 	"github.com/charmbracelet/lipgloss"
 )
 
@@ -22,6 +24,12 @@ var (
 	colorRead      = lipgloss.Color("8")   // Read indicator (dimmed)
 	colorHeader    = lipgloss.Color("15")  // Header text
 	colorHeaderDim = lipgloss.Color("8")   // Dimmed header parts
+
+	// Aging colors (Phase 4)
+	colorAgeFresh  = lipgloss.Color("15") // < 1h: Bright white
+	colorAgeRecent = lipgloss.Color("252") // 1h-24h: Near white
+	colorAgeOld    = lipgloss.Color("245") // 1d-3d: Gray
+	colorAgeStale  = lipgloss.Color("240") // > 3d: Dark gray
 )
 
 // Styles for the inbox TUI
@@ -30,6 +38,12 @@ var (
 	titleStyle = lipgloss.NewStyle().
 			Bold(true).
 			Foreground(colorTitle)
+
+	// Aging styles (Phase 4)
+	ageFreshStyle = lipgloss.NewStyle().Foreground(colorAgeFresh)
+	ageRecentStyle = lipgloss.NewStyle().Foreground(colorAgeRecent)
+	ageOldStyle    = lipgloss.NewStyle().Foreground(colorAgeOld)
+	ageStaleStyle  = lipgloss.NewStyle().Foreground(colorAgeStale)
 
 	// Selected item style
 	selectedStyle = lipgloss.NewStyle().
@@ -114,4 +128,19 @@ func BadgeStyle(t MessageType) lipgloss.Style {
 	default:
 		return dimStyle
 	}
+}
+
+// AgeStyle returns the appropriate style for a message based on its timestamp (Phase 4).
+func AgeStyle(timestamp time.Time) lipgloss.Style {
+	age := time.Since(timestamp)
+	if age < time.Hour {
+		return ageFreshStyle
+	}
+	if age < 24*time.Hour {
+		return ageRecentStyle
+	}
+	if age < 3*24*time.Hour {
+		return ageOldStyle
+	}
+	return ageStaleStyle
 }
