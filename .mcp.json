@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "windows-mcp": {
+      "command": "ssh",
+      "args": [
+        "ScreenCoach@192.168.122.90",
+        "cd /d C:\Windows-MCP-main && uv run windows-mcp"
+      ]
+    }
+  }
+}
