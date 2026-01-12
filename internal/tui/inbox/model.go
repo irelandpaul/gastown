@@ -337,7 +337,7 @@ func (m Model) updateListMode(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case key.Matches(msg, m.keys.Reply):
-		// r - enter reply mode
+		// R - enter reply mode
 		if sel := m.SelectedMessage(); sel != nil {
 			m.mode = ModeReply
 			m.replyingTo = sel
@@ -346,6 +346,11 @@ func (m Model) updateListMode(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			return m, nil
 		}
 		return m, nil
+
+	case key.Matches(msg, m.keys.Reload):
+		// r - reload messages
+		m.loading = true
+		return m, m.fetchMessages
 
 	case key.Matches(msg, m.keys.Archive):
 		// a - archive message
@@ -444,6 +449,11 @@ func (m Model) updateLearnMode(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			return m, m.fetchMessages
 		}
 		return m, nil
+
+	case key.Matches(msg, m.keys.Reload):
+		// r - reload messages
+		m.loading = true
+		return m, m.fetchMessages
 	}
 
 	return m, nil
@@ -479,6 +489,11 @@ func (m Model) updateExpandMode(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			}
 		}
 		return m, nil
+
+	case key.Matches(msg, m.keys.Reload):
+		// r - reload messages
+		m.loading = true
+		return m, m.fetchMessages
 	}
 
 	return m, nil
@@ -522,7 +537,7 @@ func (m Model) updateThreadMode(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case key.Matches(msg, m.keys.Reply):
-		// r - reply to thread (reply to original message)
+		// R - reply to thread (reply to original message)
 		if len(m.threadMessages) > 0 {
 			// Reply to the first message in thread (the original)
 			original := m.threadMessages[0]
@@ -532,6 +547,11 @@ func (m Model) updateThreadMode(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.replyInput.Focus()
 		}
 		return m, nil
+
+	case key.Matches(msg, m.keys.Reload):
+		// r - reload messages
+		m.loading = true
+		return m, m.fetchMessages
 	}
 
 	return m, nil

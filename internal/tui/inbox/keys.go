@@ -16,6 +16,7 @@ type KeyMap struct {
 	Approve     key.Binding
 	Reject      key.Binding
 	Reply       key.Binding
+	Reload      key.Binding
 	Archive     key.Binding
 	ArchiveInfo key.Binding // Phase 5: Archive all INFO messages
 	MarkAllRead key.Binding // Phase 5: Mark all messages as read
@@ -68,8 +69,12 @@ func DefaultKeyMap() KeyMap {
 			key.WithHelp("n", "reject [P]"),
 		),
 		Reply: key.NewBinding(
+			key.WithKeys("R"),
+			key.WithHelp("R", "reply"),
+		),
+		Reload: key.NewBinding(
 			key.WithKeys("r"),
-			key.WithHelp("r", "reply"),
+			key.WithHelp("r", "reload"),
 		),
 		Archive: key.NewBinding(
 			key.WithKeys("a"),
@@ -132,7 +137,7 @@ func (k KeyMap) FullHelp() [][]key.Binding {
 	return [][]key.Binding{
 		{k.Up, k.Down, k.PageUp, k.PageDown},
 		{k.Top, k.Bottom, k.NextPage, k.PrevPage, k.Tab},
-		{k.Approve, k.Reject, k.Reply, k.Archive},
+		{k.Approve, k.Reject, k.Reply, k.Reload, k.Archive},
 		{k.ArchiveInfo, k.MarkAllRead, k.ArchiveOld},
 		{k.Expand, k.Hook, k.Learn},
 		{k.Help, k.Quit},

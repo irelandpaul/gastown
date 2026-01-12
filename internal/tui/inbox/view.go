@@ -413,15 +413,15 @@ func (m Model) getQuickActionsHint(msg *Message) string {
 	var base string
 	switch msg.Type {
 	case TypeProposal:
-		base = "[y] Approve  [n] Reject  [r] Reply  [L] Learn"
+		base = "[y] Approve  [n] Reject  [R] Reply  [r] Reload  [L] Learn"
 	case TypeQuestion:
-		base = "[r] Reply  [a] Archive  [L] Learn"
+		base = "[R] Reply  [a] Archive  [r] Reload  [L] Learn"
 	case TypeAlert:
-		base = "[r] Reply  [a] Acknowledge  [L] Learn"
+		base = "[R] Reply  [a] Acknowledge  [r] Reload  [L] Learn"
 	case TypeInfo:
-		base = "[a] Archive  [L] Learn"
+		base = "[a] Archive  [r] Reload  [L] Learn"
 	default:
-		base = "[L] Learn"
+		base = "[r] Reload  [L] Learn"
 	}
 
 	// Add expand hint if message has bead references
@@ -547,7 +547,7 @@ func (m Model) renderThreadView() string {
 	// Footer
 	b.WriteString(dimStyle.Render(strings.Repeat("─", m.width-2)))
 	b.WriteString("\n")
-	b.WriteString(helpStyle.Render("r reply | Esc back"))
+	b.WriteString(helpStyle.Render("R reply | Esc back"))
 
 	return b.String()
 }
