@@ -20,6 +20,8 @@ func (m Model) renderView() string {
 		return m.renderReplyView()
 	case ModeThread:
 		return m.renderThreadView()
+	case ModeExpand:
+		return m.renderExpandView()
 	default:
 		return m.renderListView()
 	}
@@ -268,18 +270,30 @@ func (m Model) renderPreview(width, height int) string {
 	b.WriteString("\n")
 	linesWritten++
 
+	// Bead references line (Phase 3)
+	if len(msg.References) > 0 {
+		refsLine := fmt.Sprintf(" %s %s",
+			previewLabelStyle.Render("Refs:"),
+			titleStyle.Render(strings.Join(msg.References, ", ")))
+		b.WriteString(truncateString(refsLine, width))
+		b.WriteString("\n")
+		linesWritten++
+	}
+
 	// Separator
 	b.WriteString(" " + dimStyle.Render(strings.Repeat("─", width-2)))
 	b.WriteString("\n")
 	linesWritten++
 
-	// Body content (wrap lines)
+	// Body content (wrap lines, highlight bead references)
 	bodyLines := wrapText(msg.Body, width-2)
 	for _, line := range bodyLines {
 		if linesWritten >= height-2 { // Reserve space for bottom actions
 			break
 		}
-		b.WriteString(" " + line)
+		// Highlight bead references in the line
+		highlightedLine := highlightBeadRefs(line, msg.References)
+		b.WriteString(" " + highlightedLine)
 		b.WriteString("\n")
 		linesWritten++
 	}
@@ -304,18 +318,29 @@ func (m Model) renderPreview(width, height int) string {
 
 // getQuickActionsHint returns the quick action hint for a message type.
 func (m Model) getQuickActionsHint(msg *Message) string {
+	var base string
 	switch msg.Type {
 	case TypeProposal:
-		return "[y] Approve  [n] Reject  [Enter]"
+		base = "[y] Approve  [n] Reject  [r] Reply"
 	case TypeQuestion:
-		return "[r] Reply  [a] Archive"
+		base = "[r] Reply  [a] Archive"
 	case TypeAlert:
-		return "[r] Reply  [a] Acknowledge"
+		base = "[r] Reply  [a] Acknowledge"
 	case TypeInfo:
-		return "[a] Archive"
+		base = "[a] Archive"
 	default:
-		return ""
+		base = ""
 	}
+
+	// Add expand hint if message has bead references
+	if len(msg.References) > 0 {
+		if base != "" {
+			base += "  "
+		}
+		base += fmt.Sprintf("[e] Expand (%d)", len(msg.References))
+	}
+
+	return base
 }
 
 // renderFooter renders the help footer.
@@ -435,6 +460,105 @@ func (m Model) renderThreadView() string {
 	return b.String()
 }
 
+// renderExpandView renders the expanded bead details view.
+func (m Model) renderExpandView() string {
+	var b strings.Builder
+
+	// Header
+	b.WriteString(titleStyle.Render("BEAD REFERENCES"))
+	if len(m.expandedBeads) > 0 {
+		b.WriteString("  ")
+		b.WriteString(dimStyle.Render(fmt.Sprintf("(%d beads)", len(m.expandedBeads))))
+	}
+	b.WriteString("\n")
+	b.WriteString(dimStyle.Render(strings.Repeat("─", m.width-2)))
+	b.WriteString("\n\n")
+
+	// Bead details
+	contentHeight := m.height - 6
+	linesUsed := 0
+
+	for i, bead := range m.expandedBeads {
+		if linesUsed >= contentHeight-3 {
+			b.WriteString(dimStyle.Render(fmt.Sprintf("... and %d more beads", len(m.expandedBeads)-i)))
+			b.WriteString("\n")
+			break
+		}
+
+		// Bead ID and status
+		statusColor := dimStyle
+		if bead.Status == "open" {
+			statusColor = alertBadgeStyle
+		} else if bead.Status == "closed" {
+			statusColor = infoBadgeStyle
+		}
+
+		beadHeader := fmt.Sprintf("%s  %s  %s",
+			titleStyle.Render(bead.ID),
+			statusColor.Render("["+bead.Status+"]"),
+			dimStyle.Render(bead.Type))
+		b.WriteString(beadHeader)
+		b.WriteString("\n")
+		linesUsed++
+
+		// Title
+		if bead.Title != "" {
+			b.WriteString("  ")
+			b.WriteString(bead.Title)
+			b.WriteString("\n")
+			linesUsed++
+		}
+
+		// Description (truncated)
+		if bead.Description != "" && linesUsed < contentHeight-3 {
+			descLines := wrapText(bead.Description, m.width-4)
+			maxDescLines := 2
+			for j, line := range descLines {
+				if j >= maxDescLines || linesUsed >= contentHeight-3 {
+					if len(descLines) > maxDescLines {
+						b.WriteString(dimStyle.Render("  ..."))
+						b.WriteString("\n")
+						linesUsed++
+					}
+					break
+				}
+				b.WriteString("  ")
+				b.WriteString(dimStyle.Render(line))
+				b.WriteString("\n")
+				linesUsed++
+			}
+		}
+
+		// Assignee
+		if bead.Assignee != "" && linesUsed < contentHeight-3 {
+			b.WriteString("  ")
+			b.WriteString(previewLabelStyle.Render("Assignee: "))
+			b.WriteString(bead.Assignee)
+			b.WriteString("\n")
+			linesUsed++
+		}
+
+		// Separator between beads
+		if i < len(m.expandedBeads)-1 {
+			b.WriteString("\n")
+			linesUsed++
+		}
+	}
+
+	// Pad remaining
+	for linesUsed < contentHeight {
+		b.WriteString("\n")
+		linesUsed++
+	}
+
+	// Footer
+	b.WriteString(dimStyle.Render(strings.Repeat("─", m.width-2)))
+	b.WriteString("\n")
+	b.WriteString(helpStyle.Render("Esc back"))
+
+	return b.String()
+}
+
 // truncateString truncates a string to maxLen runes, adding "..." if truncated.
 func truncateString(s string, maxLen int) string {
 	if utf8.RuneCountInString(s) <= maxLen {
@@ -454,6 +578,23 @@ func padRight(s string, width int) string {
 		return s
 	}
 	return s + strings.Repeat(" ", width-runeCount)
+}
+
+// highlightBeadRefs highlights bead references in a line of text.
+func highlightBeadRefs(line string, refs []string) string {
+	if len(refs) == 0 {
+		return line
+	}
+
+	result := line
+	for _, ref := range refs {
+		// Replace bead ID with highlighted version
+		if strings.Contains(result, ref) {
+			highlighted := titleStyle.Render(ref)
+			result = strings.ReplaceAll(result, ref, highlighted)
+		}
+	}
+	return result
 }
 
 // wrapText wraps text to fit within the given width.

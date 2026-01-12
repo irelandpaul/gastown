@@ -3,6 +3,7 @@ package inbox
 import (
 	"fmt"
 
+	"github.com/steveyegge/gastown/internal/beads"
 	"github.com/steveyegge/gastown/internal/mail"
 )
 
@@ -158,4 +159,42 @@ func convertToInboxMessage(mm *mail.Message) Message {
 func inferTypeFromMail(mm *mail.Message) MessageType {
 	// Reuse the existing inference logic from data.go
 	return inferMessageType(mm)
+}
+
+// fetchBeadDetails fetches details for multiple bead IDs.
+func fetchBeadDetails(beadIDs []string, workDir string) ([]ExpandedBead, error) {
+	if len(beadIDs) == 0 {
+		return nil, nil
+	}
+
+	b := beads.New(workDir)
+	issueMap, err := b.ShowMultiple(beadIDs)
+	if err != nil {
+		return nil, fmt.Errorf("fetching beads: %w", err)
+	}
+
+	var result []ExpandedBead
+	for _, id := range beadIDs {
+		issue, ok := issueMap[id]
+		if !ok {
+			// Bead not found, add placeholder
+			result = append(result, ExpandedBead{
+				ID:    id,
+				Title: "(not found)",
+			})
+			continue
+		}
+
+		result = append(result, ExpandedBead{
+			ID:          issue.ID,
+			Title:       issue.Title,
+			Description: issue.Description,
+			Status:      issue.Status,
+			Type:        issue.Type,
+			Priority:    issue.Priority,
+			Assignee:    issue.Assignee,
+		})
+	}
+
+	return result, nil
 }

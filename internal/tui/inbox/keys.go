@@ -12,11 +12,12 @@ type KeyMap struct {
 	Top      key.Binding
 	Bottom   key.Binding
 
-	// Actions (Phase 2 - not implemented yet, but defined for help display)
+	// Actions
 	Approve key.Binding
 	Reject  key.Binding
 	Reply   key.Binding
 	Archive key.Binding
+	Expand  key.Binding // Phase 3: Expand bead references
 
 	// General
 	Tab  key.Binding
@@ -66,6 +67,10 @@ func DefaultKeyMap() KeyMap {
 		Archive: key.NewBinding(
 			key.WithKeys("a"),
 			key.WithHelp("a", "archive"),
+		),
+		Expand: key.NewBinding(
+			key.WithKeys("e"),
+			key.WithHelp("e", "expand beads"),
 		),
 		Tab: key.NewBinding(
 			key.WithKeys("tab"),

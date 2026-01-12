@@ -17,7 +17,20 @@ const (
 	ModeReply
 	// ModeThread shows the thread/conversation view.
 	ModeThread
+	// ModeExpand shows expanded bead details.
+	ModeExpand
 )
+
+// ExpandedBead holds information about an expanded bead reference.
+type ExpandedBead struct {
+	ID          string
+	Title       string
+	Description string
+	Status      string
+	Type        string
+	Priority    int
+	Assignee    string
+}
 
 // Model is the bubbletea model for the inbox TUI.
 type Model struct {
@@ -56,6 +69,9 @@ type Model struct {
 
 	// Phase 2: Status message (for confirmations)
 	statusMsg string
+
+	// Phase 3: Bead expansion
+	expandedBeads []ExpandedBead // Expanded bead details for current message
 }
 
 // New creates a new inbox TUI model.
@@ -108,6 +124,12 @@ type threadLoadedMsg struct {
 	err      error
 }
 
+// beadsLoadedMsg is the result of loading bead details.
+type beadsLoadedMsg struct {
+	beads []ExpandedBead
+	err   error
+}
+
 // Update handles messages and updates the model state.
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
@@ -145,6 +167,15 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.mode = ModeThread
 		return m, nil
 
+	case beadsLoadedMsg:
+		if msg.err != nil {
+			m.statusMsg = "Failed to load beads: " + msg.err.Error()
+			return m, nil
+		}
+		m.expandedBeads = msg.beads
+		m.mode = ModeExpand
+		return m, nil
+
 	case tea.KeyMsg:
 		// Clear status message on any key press
 		m.statusMsg = ""
@@ -155,6 +186,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m.updateReplyMode(msg)
 		case ModeThread:
 			return m.updateThreadMode(msg)
+		case ModeExpand:
+			return m.updateExpandMode(msg)
 		default:
 			return m.updateListMode(msg)
 		}
@@ -249,6 +282,26 @@ func (m Model) updateListMode(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		if sel := m.SelectedMessage(); sel != nil && sel.ThreadID != "" {
 			return m, m.loadThread(sel.ThreadID)
 		}
+		return m, nil
+
+	case key.Matches(msg, m.keys.Expand):
+		// e - expand bead references
+		if sel := m.SelectedMessage(); sel != nil && len(sel.References) > 0 {
+			return m, m.loadBeads(sel.References)
+		}
+		return m, nil
+	}
+
+	return m, nil
+}
+
+// updateExpandMode handles key input in expand mode.
+func (m Model) updateExpandMode(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	switch {
+	case key.Matches(msg, m.keys.Quit), msg.Type == tea.KeyEsc:
+		// Exit expand view back to list
+		m.mode = ModeList
+		m.expandedBeads = nil
 		return m, nil
 	}
 
@@ -381,6 +434,17 @@ func (m Model) loadThread(threadID string) tea.Cmd {
 		return threadLoadedMsg{
 			messages: inboxMsgs,
 			err:      err,
+		}
+	}
+}
+
+// loadBeads creates a command to load bead details.
+func (m Model) loadBeads(beadIDs []string) tea.Cmd {
+	return func() tea.Msg {
+		beads, err := fetchBeadDetails(beadIDs, m.workDir)
+		return beadsLoadedMsg{
+			beads: beads,
+			err:   err,
 		}
 	}
 }
