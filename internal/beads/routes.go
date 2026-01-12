@@ -236,8 +236,14 @@ func GetRigPathForPrefix(townRoot, prefix string) string {
 // actual rig directory from the bead's prefix. hookWorkDir is only used as
 // a fallback if prefix resolution fails.
 func ResolveHookDir(townRoot, beadID, hookWorkDir string) string {
-	// Always try prefix resolution first - bd update needs the actual rig dir
 	prefix := ExtractPrefix(beadID)
+
+	// Town-level beads (hq- prefix) are always in townRoot
+	if prefix == TownBeadsPrefix+"-" {
+		return townRoot
+	}
+
+	// Always try prefix resolution first - bd update needs the actual rig dir
 	if rigPath := GetRigPathForPrefix(townRoot, prefix); rigPath != "" {
 		return rigPath
 	}

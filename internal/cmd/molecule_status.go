@@ -429,6 +429,18 @@ func runMoleculeStatus(cmd *cobra.Command, args []string) error {
 			if err == nil && len(townHooked) > 0 {
 				hookedBeads = townHooked
 			}
+
+			// Also check in_progress beads in town root (work that was claimed but session interrupted)
+			if len(hookedBeads) == 0 {
+				townInProgress, err := townBeads.List(beads.ListOptions{
+					Status:   "in_progress",
+					Assignee: target,
+					Priority: -1,
+				})
+				if err == nil && len(townInProgress) > 0 {
+					hookedBeads = townInProgress
+				}
+			}
 		}
 
 		// For town-level roles (mayor, deacon), scan all rigs if nothing found locally
