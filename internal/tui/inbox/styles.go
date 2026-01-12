@@ -7,21 +7,21 @@ import (
 // Color definitions matching the spec
 var (
 	// Message type colors
-	colorProposal = lipgloss.Color("11")  // Yellow
-	colorQuestion = lipgloss.Color("14")  // Cyan
-	colorAlert    = lipgloss.Color("9")   // Red
-	colorInfo     = lipgloss.Color("8")   // Gray
+	colorProposal = lipgloss.Color("11") // Yellow
+	colorQuestion = lipgloss.Color("14") // Cyan
+	colorAlert    = lipgloss.Color("9")  // Red
+	colorInfo     = lipgloss.Color("8")  // Gray
 
 	// UI colors
-	colorSelected   = lipgloss.Color("236") // Selection background
-	colorBorder     = lipgloss.Color("240") // Border color
-	colorTitle      = lipgloss.Color("12")  // Title color (blue)
-	colorDim        = lipgloss.Color("8")   // Dimmed text
-	colorNormal     = lipgloss.Color("15")  // Normal text (white)
-	colorUnread     = lipgloss.Color("15")  // Unread indicator
-	colorRead       = lipgloss.Color("8")   // Read indicator (dimmed)
-	colorHeader     = lipgloss.Color("15")  // Header text
-	colorHeaderDim  = lipgloss.Color("8")   // Dimmed header parts
+	colorSelected  = lipgloss.Color("236") // Selection background
+	colorBorder    = lipgloss.Color("240") // Border color
+	colorTitle     = lipgloss.Color("12")  // Title color (blue)
+	colorDim       = lipgloss.Color("8")   // Dimmed text
+	colorNormal    = lipgloss.Color("15")  // Normal text (white)
+	colorUnread    = lipgloss.Color("15")  // Unread indicator
+	colorRead      = lipgloss.Color("8")   // Read indicator (dimmed)
+	colorHeader    = lipgloss.Color("15")  // Header text
+	colorHeaderDim = lipgloss.Color("8")   // Dimmed header parts
 )
 
 // Styles for the inbox TUI

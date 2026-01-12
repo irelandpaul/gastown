@@ -14,6 +14,19 @@ func (m Model) renderView() string {
 		return "Loading..."
 	}
 
+	// Render based on current mode
+	switch m.mode {
+	case ModeReply:
+		return m.renderReplyView()
+	case ModeThread:
+		return m.renderThreadView()
+	default:
+		return m.renderListView()
+	}
+}
+
+// renderListView renders the standard list + preview view.
+func (m Model) renderListView() string {
 	var b strings.Builder
 
 	// Calculate dimensions
@@ -307,10 +320,119 @@ func (m Model) getQuickActionsHint(msg *Message) string {
 
 // renderFooter renders the help footer.
 func (m Model) renderFooter() string {
+	// Show status message if present
+	if m.statusMsg != "" {
+		return titleStyle.Render(m.statusMsg)
+	}
+
 	if m.showHelp {
 		return m.help.View(m.keys)
 	}
 	return helpStyle.Render("↑↓ nav | q quit | ? help")
+}
+
+// renderReplyView renders the reply composition view.
+func (m Model) renderReplyView() string {
+	var b strings.Builder
+
+	// Header
+	b.WriteString(titleStyle.Render("REPLY"))
+	b.WriteString("\n\n")
+
+	// Show what we're replying to
+	if m.replyingTo != nil {
+		b.WriteString(previewLabelStyle.Render("To: "))
+		b.WriteString(m.replyingTo.From)
+		b.WriteString("\n")
+		b.WriteString(previewLabelStyle.Render("Re: "))
+		b.WriteString(m.replyingTo.Subject)
+		b.WriteString("\n")
+	}
+
+	b.WriteString("\n")
+	b.WriteString(dimStyle.Render(strings.Repeat("─", m.width-2)))
+	b.WriteString("\n\n")
+
+	// Textarea
+	b.WriteString(m.replyInput.View())
+	b.WriteString("\n\n")
+
+	// Footer with instructions
+	b.WriteString(dimStyle.Render(strings.Repeat("─", m.width-2)))
+	b.WriteString("\n")
+	b.WriteString(helpStyle.Render("Ctrl+D send | Esc cancel"))
+
+	return b.String()
+}
+
+// renderThreadView renders the thread/conversation view.
+func (m Model) renderThreadView() string {
+	var b strings.Builder
+
+	// Header
+	b.WriteString(titleStyle.Render("THREAD"))
+	if len(m.threadMessages) > 0 {
+		b.WriteString("  ")
+		b.WriteString(dimStyle.Render(fmt.Sprintf("(%d messages)", len(m.threadMessages))))
+	}
+	b.WriteString("\n")
+	b.WriteString(dimStyle.Render(strings.Repeat("─", m.width-2)))
+	b.WriteString("\n\n")
+
+	// Thread messages (oldest first)
+	contentHeight := m.height - 6
+	linesUsed := 0
+
+	for i, msg := range m.threadMessages {
+		if linesUsed >= contentHeight-3 {
+			b.WriteString(dimStyle.Render(fmt.Sprintf("... and %d more messages", len(m.threadMessages)-i)))
+			b.WriteString("\n")
+			break
+		}
+
+		// Message header: From and timestamp
+		msgHeader := fmt.Sprintf("%s  %s", msg.From, dimStyle.Render(msg.Age()))
+		b.WriteString(previewLabelStyle.Render(msgHeader))
+		b.WriteString("\n")
+		linesUsed++
+
+		// Message body (truncate if needed)
+		bodyLines := wrapText(msg.Body, m.width-4)
+		maxBodyLines := 3
+		for j, line := range bodyLines {
+			if j >= maxBodyLines || linesUsed >= contentHeight-3 {
+				if len(bodyLines) > maxBodyLines {
+					b.WriteString(dimStyle.Render("  ..."))
+					b.WriteString("\n")
+					linesUsed++
+				}
+				break
+			}
+			b.WriteString("  ")
+			b.WriteString(line)
+			b.WriteString("\n")
+			linesUsed++
+		}
+
+		// Separator between messages
+		if i < len(m.threadMessages)-1 {
+			b.WriteString("\n")
+			linesUsed++
+		}
+	}
+
+	// Pad remaining
+	for linesUsed < contentHeight {
+		b.WriteString("\n")
+		linesUsed++
+	}
+
+	// Footer
+	b.WriteString(dimStyle.Render(strings.Repeat("─", m.width-2)))
+	b.WriteString("\n")
+	b.WriteString(helpStyle.Render("r reply | Esc back"))
+
+	return b.String()
 }
 
 // truncateString truncates a string to maxLen runes, adding "..." if truncated.
