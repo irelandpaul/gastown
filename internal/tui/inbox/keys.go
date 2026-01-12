@@ -13,22 +13,23 @@ type KeyMap struct {
 	Bottom   key.Binding
 
 	// Actions
-	Approve    key.Binding
-	Reject     key.Binding
-	Reply      key.Binding
-	Archive    key.Binding
+	Approve     key.Binding
+	Reject      key.Binding
+	Reply       key.Binding
+	Archive     key.Binding
 	ArchiveInfo key.Binding // Phase 5: Archive all INFO messages
 	MarkAllRead key.Binding // Phase 5: Mark all messages as read
 	ArchiveOld  key.Binding // Phase 5: Archive old messages
-	Expand     key.Binding // Phase 3: Expand bead references
-	Hook       key.Binding // Phase 3: Hook/claim bead
+	Expand      key.Binding // Phase 3: Expand bead references
+	Hook        key.Binding // Phase 3: Hook/claim bead
+	Learn       key.Binding // Phase 6: Learn message type
 
 	// General
 	NextPage key.Binding // Phase 5: Next page of messages
 	PrevPage key.Binding // Phase 5: Previous page of messages
-	Tab  key.Binding
-	Help key.Binding
-	Quit key.Binding
+	Tab      key.Binding
+	Help     key.Binding
+	Quit     key.Binding
 }
 
 // DefaultKeyMap returns the default key bindings for the inbox TUI.
@@ -102,6 +103,10 @@ func DefaultKeyMap() KeyMap {
 			key.WithKeys("h"),
 			key.WithHelp("h", "hook bead"),
 		),
+		Learn: key.NewBinding(
+			key.WithKeys("L"),
+			key.WithHelp("L", "learn type"),
+		),
 		Tab: key.NewBinding(
 			key.WithKeys("tab"),
 			key.WithHelp("tab", "switch pane"),
@@ -129,7 +134,7 @@ func (k KeyMap) FullHelp() [][]key.Binding {
 		{k.Top, k.Bottom, k.NextPage, k.PrevPage, k.Tab},
 		{k.Approve, k.Reject, k.Reply, k.Archive},
 		{k.ArchiveInfo, k.MarkAllRead, k.ArchiveOld},
-		{k.Expand, k.Hook},
+		{k.Expand, k.Hook, k.Learn},
 		{k.Help, k.Quit},
 	}
 }

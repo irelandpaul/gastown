@@ -8,7 +8,7 @@ import (
 )
 
 // loadMessages loads messages from the mailbox and converts them to inbox Messages.
-func loadMessages(address, workDir string) ([]Message, []string, error) {
+func loadMessages(address, workDir string, ls *LearningSystem) ([]Message, []string, error) {
 	// Get mailbox
 	router := mail.NewRouter(workDir)
 	mailbox, err := router.GetMailbox(address)
@@ -25,7 +25,7 @@ func loadMessages(address, workDir string) ([]Message, []string, error) {
 	// Convert to inbox messages
 	messages := make([]Message, 0, len(mailMessages))
 	for _, mm := range mailMessages {
-		msg := convertMailMessage(mm)
+		msg := convertMailMessage(mm, ls)
 		messages = append(messages, msg)
 	}
 
@@ -40,8 +40,8 @@ func loadMessages(address, workDir string) ([]Message, []string, error) {
 }
 
 // convertMailMessage converts a mail.Message to an inbox.Message.
-func convertMailMessage(mm *mail.Message) Message {
-	return Message{
+func convertMailMessage(mm *mail.Message, ls *LearningSystem) Message {
+	msg := Message{
 		ID:         mm.ID,
 		Type:       InferMessageType(mm),
 		Subject:    mm.Subject,
@@ -53,6 +53,15 @@ func convertMailMessage(mm *mail.Message) Message {
 		ReplyCount: 0, // TODO: count thread replies
 		References: extractReferences(mm.Body),
 	}
+
+	// Apply learning system overrides
+	if ls != nil {
+		if overriddenType, ok := ls.Classify(msg); ok {
+			msg.Type = overriddenType
+		}
+	}
+
+	return msg
 }
 
 // InferMessageType infers the inbox message type from a mail message.

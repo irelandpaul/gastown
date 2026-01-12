@@ -34,6 +34,7 @@ NAVIGATION:
   ↑/k, ↓/j     Move up/down
   g, G         Go to top/bottom
   pgup, pgdn   Page up/down
+  L            Learn message type (classification override)
   q, Esc       Quit
 
 Examples:

@@ -22,9 +22,60 @@ func (m Model) renderView() string {
 		return m.renderThreadView()
 	case ModeExpand:
 		return m.renderExpandView()
+	case ModeLearn:
+		return m.renderLearnView()
 	default:
 		return m.renderListView()
 	}
+}
+
+// renderLearnView renders the type selection view for learning.
+func (m Model) renderLearnView() string {
+	var b strings.Builder
+
+	// Header
+	b.WriteString(titleStyle.Render("LEARN MESSAGE TYPE"))
+	b.WriteString("\n\n")
+
+	msg := m.SelectedMessage()
+	if msg != nil {
+		b.WriteString(previewLabelStyle.Render("Message: "))
+		b.WriteString(msg.Subject)
+		b.WriteString("\n")
+		b.WriteString(previewLabelStyle.Render("Current Type: "))
+		b.WriteString(string(msg.Type))
+		b.WriteString("\n\n")
+	}
+
+	b.WriteString("Select correct type:\n\n")
+
+	types := []MessageType{TypeProposal, TypeQuestion, TypeAlert, TypeInfo}
+	for i, t := range types {
+		cursor := "  "
+		if i == m.learnCursor {
+			cursor = "▸ "
+		}
+
+		line := fmt.Sprintf("%s%s %s", cursor, t.Badge(), strings.ToUpper(string(t)))
+		if i == m.learnCursor {
+			line = selectedStyle.Render(line)
+		}
+		b.WriteString(line)
+		b.WriteString("\n")
+	}
+
+	// Pad remaining
+	contentHeight := m.height - 10
+	for i := 0; i < contentHeight; i++ {
+		b.WriteString("\n")
+	}
+
+	// Footer
+	b.WriteString(dimStyle.Render(strings.Repeat("─", m.width-2)))
+	b.WriteString("\n")
+	b.WriteString(helpStyle.Render("Enter select | Esc cancel"))
+
+	return b.String()
 }
 
 // renderListView renders the standard list + preview view.
@@ -269,7 +320,8 @@ func (m Model) renderMessageLine(msg *Message, width int, selected bool) string 
 // renderDivider renders the vertical divider between list and preview.
 func (m Model) renderDivider(height int) string {
 	var b strings.Builder
-	divider := "│"
+
+divider := "│"
 	for i := 0; i < height; i++ {
 		b.WriteString(divider)
 		if i < height-1 {
@@ -333,7 +385,7 @@ func (m Model) renderPreview(width, height int) string {
 			break
 		}
 		// Highlight bead references in the line
-		highlightedLine := highlightBeadRefs(line, msg.References)
+	highlightedLine := highlightBeadRefs(line, msg.References)
 		b.WriteString(" " + highlightedLine)
 		b.WriteString("\n")
 		linesWritten++
@@ -348,7 +400,6 @@ func (m Model) renderPreview(width, height int) string {
 	// Bottom separator
 	b.WriteString(" " + dimStyle.Render(strings.Repeat("─", width-2)))
 	b.WriteString("\n")
-	linesWritten++
 
 	// Quick actions hint based on message type
 	actions := m.getQuickActionsHint(msg)
@@ -362,15 +413,15 @@ func (m Model) getQuickActionsHint(msg *Message) string {
 	var base string
 	switch msg.Type {
 	case TypeProposal:
-		base = "[y] Approve  [n] Reject  [r] Reply"
+		base = "[y] Approve  [n] Reject  [r] Reply  [L] Learn"
 	case TypeQuestion:
-		base = "[r] Reply  [a] Archive"
+		base = "[r] Reply  [a] Archive  [L] Learn"
 	case TypeAlert:
-		base = "[r] Reply  [a] Acknowledge"
+		base = "[r] Reply  [a] Acknowledge  [L] Learn"
 	case TypeInfo:
-		base = "[a] Archive"
+		base = "[a] Archive  [L] Learn"
 	default:
-		base = ""
+		base = "[L] Learn"
 	}
 
 	// Add expand hint if message has bead references
@@ -463,7 +514,7 @@ func (m Model) renderThreadView() string {
 		linesUsed++
 
 		// Message body (truncate if needed)
-		bodyLines := wrapText(msg.Body, m.width-4)
+	bodyLines := wrapText(msg.Body, m.width-4)
 		maxBodyLines := 3
 		for j, line := range bodyLines {
 			if j >= maxBodyLines || linesUsed >= contentHeight-3 {
@@ -600,7 +651,7 @@ func (m Model) renderExpandView() string {
 						b.WriteString("\n")
 						linesUsed++
 					}
-					break
+				break
 				}
 				b.WriteString("    ")
 				b.WriteString(dimStyle.Render(line))

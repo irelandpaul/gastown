@@ -21,6 +21,8 @@ const (
 	ModeThread
 	// ModeExpand shows expanded bead details.
 	ModeExpand
+	// ModeLearn shows the type selection for learning.
+	ModeLearn
 )
 
 // ExpandedBead holds information about an expanded bead reference.
@@ -84,6 +86,10 @@ type Model struct {
 
 	// Phase 5: Pagination
 	page int
+
+	// Phase 6: Learning System
+	learning    *LearningSystem
+	learnCursor int
 }
 
 // New creates a new inbox TUI model.
@@ -103,6 +109,7 @@ func New(address, workDir string) Model {
 		loading:    true,
 		mode:       ModeList,
 		replyInput: ti,
+		learning:   NewLearningSystem(workDir),
 	}
 }
 
@@ -130,7 +137,7 @@ type fetchMessagesMsg struct {
 
 // fetchMessages fetches messages from the mailbox.
 func (m Model) fetchMessages() tea.Msg {
-	messages, toArchive, err := loadMessages(m.address, m.workDir)
+	messages, toArchive, err := loadMessages(m.address, m.workDir, m.learning)
 	return fetchMessagesMsg{messages: messages, toArchive: toArchive, err: err}
 }
 
@@ -256,6 +263,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m.updateThreadMode(msg)
 		case ModeExpand:
 			return m.updateExpandMode(msg)
+		case ModeLearn:
+			return m.updateLearnMode(msg)
 		default:
 			return m.updateListMode(msg)
 		}
@@ -384,6 +393,55 @@ func (m Model) updateListMode(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		// e - expand bead references
 		if sel := m.SelectedMessage(); sel != nil && len(sel.References) > 0 {
 			return m, m.loadBeads(sel.References)
+		}
+		return m, nil
+
+	case key.Matches(msg, m.keys.Learn):
+		// L - enter learning mode
+		if sel := m.SelectedMessage(); sel != nil {
+			m.mode = ModeLearn
+			m.learnCursor = 0
+			return m, nil
+		}
+		return m, nil
+	}
+
+	return m, nil
+}
+
+// updateLearnMode handles key input in learn mode.
+func (m Model) updateLearnMode(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	types := []MessageType{TypeProposal, TypeQuestion, TypeAlert, TypeInfo}
+
+	switch {
+	case key.Matches(msg, m.keys.Quit), msg.Type == tea.KeyEsc:
+		m.mode = ModeList
+		return m, nil
+
+	case key.Matches(msg, m.keys.Up):
+		if m.learnCursor > 0 {
+			m.learnCursor--
+		}
+		return m, nil
+
+	case key.Matches(msg, m.keys.Down):
+		if m.learnCursor < len(types)-1 {
+			m.learnCursor++
+		}
+		return m, nil
+
+	case msg.Type == tea.KeyEnter:
+		if sel := m.SelectedMessage(); sel != nil {
+			targetType := types[m.learnCursor]
+			err := m.learning.Learn(*sel, targetType)
+			if err != nil {
+				m.statusMsg = "Learning failed: " + err.Error()
+			} else {
+				m.statusMsg = "Learned new classification rule"
+			}
+			m.mode = ModeList
+			// Refresh to apply new rule
+			return m, m.fetchMessages
 		}
 		return m, nil
 	}
