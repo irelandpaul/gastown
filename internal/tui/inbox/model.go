@@ -81,6 +81,9 @@ type Model struct {
 	// Phase 4: Notifications
 	lastFetch time.Time
 	newCount  int // New messages since last view
+
+	// Phase 5: Pagination
+	page int
 }
 
 // New creates a new inbox TUI model.
@@ -120,14 +123,15 @@ func (m Model) tick() tea.Cmd {
 
 // fetchMessagesMsg is the result of fetching messages.
 type fetchMessagesMsg struct {
-	messages []Message
-	err      error
+	messages  []Message
+	toArchive []string
+	err       error
 }
 
 // fetchMessages fetches messages from the mailbox.
 func (m Model) fetchMessages() tea.Msg {
-	messages, err := loadMessages(m.address, m.workDir)
-	return fetchMessagesMsg{messages: messages, err: err}
+	messages, toArchive, err := loadMessages(m.address, m.workDir)
+	return fetchMessagesMsg{messages: messages, toArchive: toArchive, err: err}
 }
 
 // actionResultMsg is the result of an action (approve, reject, archive, reply).
@@ -164,6 +168,12 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.loading = false
 		m.err = msg.err
 
+		// Phase 5: Auto-archive stacked INFO
+		var archiveCmds []tea.Cmd
+		for _, id := range msg.toArchive {
+			archiveCmds = append(archiveCmds, m.doArchiveByID(id))
+		}
+
 		// Phase 4: Notification logic
 		var notifyCmds []tea.Cmd
 		if m.err == nil && !m.lastFetch.IsZero() {
@@ -191,8 +201,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.lastFetch = time.Now()
 		}
 
-		if len(notifyCmds) > 0 {
-			return m, tea.Batch(notifyCmds...)
+		cmds := append(archiveCmds, notifyCmds...)
+		if len(cmds) > 0 {
+			return m, tea.Batch(cmds...)
 		}
 		return m, nil
 
@@ -202,9 +213,12 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case actionResultMsg:
 		if msg.success {
-			m.statusMsg = msg.action + " successful"
-			// Refresh messages after action
-			return m, m.fetchMessages
+			if msg.action != "Auto-archived" {
+				m.statusMsg = msg.action + " successful"
+				// Refresh messages after action
+				return m, m.fetchMessages
+			}
+			return m, nil
 		}
 		if msg.err != nil {
 			m.statusMsg = msg.action + " failed: " + msg.err.Error()
@@ -328,6 +342,34 @@ func (m Model) updateListMode(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		// a - archive message
 		if sel := m.SelectedMessage(); sel != nil {
 			return m, m.doArchive(sel)
+		}
+		return m, nil
+
+	case key.Matches(msg, m.keys.ArchiveInfo):
+		// A - archive all INFO
+		return m, m.doArchiveInfo()
+
+	case key.Matches(msg, m.keys.MarkAllRead):
+		// M - mark all read
+		return m, m.doMarkAllRead()
+
+	case key.Matches(msg, m.keys.ArchiveOld):
+		// D - archive old
+		return m, m.doArchiveOld()
+
+	case key.Matches(msg, m.keys.NextPage):
+		// ] - next page
+		if (m.page+1)*100 < len(m.messages) {
+			m.page++
+			m.cursor = m.page * 100
+		}
+		return m, nil
+
+	case key.Matches(msg, m.keys.PrevPage):
+		// [ - prev page
+		if m.page > 0 {
+			m.page--
+			m.cursor = m.page * 100
 		}
 		return m, nil
 
@@ -476,10 +518,51 @@ func (m Model) doReject(msg *Message) tea.Cmd {
 
 // doArchive creates a command to archive a message.
 func (m Model) doArchive(msg *Message) tea.Cmd {
+	return m.doArchiveByID(msg.ID)
+}
+
+// doArchiveByID creates a command to archive a message by its ID.
+func (m Model) doArchiveByID(id string) tea.Cmd {
 	return func() tea.Msg {
-		err := archiveMessage(msg.ID, m.address, m.workDir)
+		err := archiveMessage(id, m.address, m.workDir)
 		return actionResultMsg{
-			action:  "Archived",
+			action:  "Auto-archived",
+			success: err == nil,
+			err:     err,
+		}
+	}
+}
+
+// doArchiveInfo creates a command to archive all INFO messages.
+func (m Model) doArchiveInfo() tea.Cmd {
+	return func() tea.Msg {
+		err := archiveInfo(m.address, m.workDir)
+		return actionResultMsg{
+			action:  "Archived all info",
+			success: err == nil,
+			err:     err,
+		}
+	}
+}
+
+// doMarkAllRead creates a command to mark all messages as read.
+func (m Model) doMarkAllRead() tea.Cmd {
+	return func() tea.Msg {
+		err := markAllRead(m.address, m.workDir)
+		return actionResultMsg{
+			action:  "Marked all read",
+			success: err == nil,
+			err:     err,
+		}
+	}
+}
+
+// doArchiveOld creates a command to archive old messages.
+func (m Model) doArchiveOld() tea.Cmd {
+	return func() tea.Msg {
+		err := archiveOld(m.address, m.workDir)
+		return actionResultMsg{
+			action:  "Archived old messages",
 			success: err == nil,
 			err:     err,
 		}

@@ -91,6 +91,30 @@ func (m *Mailbox) List() ([]*Message, error) {
 	return m.listBeads()
 }
 
+// ListPaginated returns open messages with limit and offset.
+func (m *Mailbox) ListPaginated(limit, offset int) ([]*Message, error) {
+	if m.legacy {
+		// For legacy, we just load all and slice
+		all, err := m.listLegacy()
+		if err != nil {
+			return nil, err
+		}
+		if offset >= len(all) {
+			return nil, nil
+		}
+		end := offset + limit
+		if end > len(all) {
+			end = len(all)
+		}
+		return all[offset:end], nil
+	}
+
+	// For beads, we can pass limit/offset to the query
+	// (Note: bd list --limit N --offset M is supported if we implement it)
+	// Actually, let's check if 'bd list' supports offset.
+	return m.listBeadsPaginated(limit, offset)
+}
+
 func (m *Mailbox) listBeads() ([]*Message, error) {
 	// Single query to beads - returns both persistent and wisp messages
 	// Wisps are stored in same DB with wisp=true flag, filtered from JSONL export
@@ -105,6 +129,22 @@ func (m *Mailbox) listBeads() ([]*Message, error) {
 	})
 
 	return messages, nil
+}
+
+func (m *Mailbox) listBeadsPaginated(limit, offset int) ([]*Message, error) {
+	all, err := m.listBeads()
+	if err != nil {
+		return nil, err
+	}
+
+	if offset >= len(all) {
+		return nil, nil
+	}
+	end := offset + limit
+	if limit <= 0 || end > len(all) {
+		end = len(all)
+	}
+	return all[offset:end], nil
 }
 
 // listFromDir queries messages from a beads directory.
@@ -123,7 +163,7 @@ func (m *Mailbox) listFromDir(beadsDir string) ([]*Message, error) {
 	// Query for each identity variant in both open and hooked statuses
 	for _, identity := range identities {
 		for _, status := range []string{"open", "hooked"} {
-			msgs, err := m.queryMessages(beadsDir, "--assignee", identity, status)
+			msgs, err := m.queryMessages(beadsDir, "--assignee", identity, status, 0)
 			if err != nil {
 				lastErr = err
 			} else {
@@ -140,7 +180,7 @@ func (m *Mailbox) listFromDir(beadsDir string) ([]*Message, error) {
 
 	// Query for CC'd messages (open only)
 	for _, identity := range identities {
-		ccMsgs, err := m.queryMessages(beadsDir, "--label", "cc:"+identity, "open")
+		ccMsgs, err := m.queryMessages(beadsDir, "--label", "cc:"+identity, "open", 0)
 		if err != nil {
 			lastErr = err
 		} else {
@@ -179,11 +219,12 @@ func (m *Mailbox) identityVariants() []string {
 }
 
 // queryMessages runs a bd list query with the given filter flag and value.
-func (m *Mailbox) queryMessages(beadsDir, filterFlag, filterValue, status string) ([]*Message, error) {
+func (m *Mailbox) queryMessages(beadsDir, filterFlag, filterValue, status string, limit int) ([]*Message, error) {
 	args := []string{"list",
 		"--type", "message",
 		filterFlag, filterValue,
 		"--status", status,
+		"--limit", fmt.Sprintf("%d", limit),
 		"--json",
 	}
 

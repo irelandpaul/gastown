@@ -8,18 +8,18 @@ import (
 )
 
 // loadMessages loads messages from the mailbox and converts them to inbox Messages.
-func loadMessages(address, workDir string) ([]Message, error) {
+func loadMessages(address, workDir string) ([]Message, []string, error) {
 	// Get mailbox
 	router := mail.NewRouter(workDir)
 	mailbox, err := router.GetMailbox(address)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	// Get all messages
 	mailMessages, err := mailbox.List()
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	// Convert to inbox messages
@@ -29,11 +29,14 @@ func loadMessages(address, workDir string) ([]Message, error) {
 		messages = append(messages, msg)
 	}
 
+	// Phase 5: Replace mode for INFO (status updates don't stack)
+	filtered, toArchive := filterStackedInfo(messages)
+
 	// Sort: actionable first (by type priority), then INFO
 	// Within each group, newest first
-	sortMessages(messages)
+	sortMessages(filtered)
 
-	return messages, nil
+	return filtered, toArchive, nil
 }
 
 // convertMailMessage converts a mail.Message to an inbox.Message.
@@ -125,6 +128,53 @@ func extractReferences(body string) []string {
 	}
 
 	return refs
+}
+
+// filterStackedInfo removes older INFO messages from the same sender with the same subject.
+// This implements Phase 5 "Replace mode for INFO".
+// Returns filtered messages and messages that should be archived.
+func filterStackedInfo(messages []Message) ([]Message, []string) {
+	type key struct {
+		from    string
+		subject string
+	}
+
+	// Track newest message for each (from, subject) pair
+	newest := make(map[key]Message)
+	var toArchive []string
+
+	for _, msg := range messages {
+		if msg.Type != TypeInfo {
+			continue
+		}
+
+		k := key{from: msg.From, subject: msg.Subject}
+		if existing, ok := newest[k]; ok {
+			if msg.Timestamp.After(existing.Timestamp) {
+				toArchive = append(toArchive, existing.ID)
+				newest[k] = msg
+			} else {
+				toArchive = append(toArchive, msg.ID)
+			}
+		} else {
+			newest[k] = msg
+		}
+	}
+
+	var filtered []Message
+	for _, msg := range messages {
+		if msg.Type != TypeInfo {
+			filtered = append(filtered, msg)
+			continue
+		}
+		// Only keep if it's the newest for its key
+		k := key{from: msg.From, subject: msg.Subject}
+		if newest[k].ID == msg.ID {
+			filtered = append(filtered, msg)
+		}
+	}
+
+	return filtered, toArchive
 }
 
 // sortMessages sorts messages with actionable items first, then INFO.

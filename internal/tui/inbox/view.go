@@ -85,6 +85,12 @@ func (m Model) renderHeader() string {
 	}
 	statsStr += fmt.Sprintf(" | %d messages", len(m.messages))
 
+	// Phase 5: Pagination info
+	if len(m.messages) > 100 {
+		totalPages := (len(m.messages) + 99) / 100
+		statsStr += fmt.Sprintf(" [Page %d/%d]", m.page+1, totalPages)
+	}
+
 	stats := dimStyle.Render(statsStr)
 
 	// Phase 4: New messages notification
@@ -136,16 +142,25 @@ func (m Model) renderList(width, height int) string {
 		}
 	}
 
-	// Calculate visible range (simple scrolling)
-	visibleStart := 0
-	visibleEnd := height - 1
-	if len(m.messages) > height-1 && m.cursor > height/2 {
-		visibleStart = m.cursor - height/2
-		visibleEnd = visibleStart + height - 1
+	// Calculate visible range (simple scrolling within current page)
+	const pageSize = 100
+	pageStart := m.page * pageSize
+	pageEnd := pageStart + pageSize
+	if pageEnd > len(m.messages) {
+		pageEnd = len(m.messages)
 	}
-	if visibleEnd > len(m.messages) {
-		visibleEnd = len(m.messages)
-		visibleStart = visibleEnd - height + 1
+
+	visibleMessages := m.messages[pageStart:pageEnd]
+
+	visibleStart := 0
+	visibleHeight := height - 1
+	if len(visibleMessages) > visibleHeight && m.cursor > pageStart+visibleHeight/2 {
+		visibleStart = (m.cursor - pageStart) - visibleHeight/2
+	}
+	visibleEndIdx := visibleStart + visibleHeight
+	if visibleEndIdx > len(visibleMessages) {
+		visibleEndIdx = len(visibleMessages)
+		visibleStart = visibleEndIdx - visibleHeight
 		if visibleStart < 0 {
 			visibleStart = 0
 		}
@@ -154,13 +169,15 @@ func (m Model) renderList(width, height int) string {
 	linesWritten := 0
 	showedInfoSeparator := false
 
-	for i := visibleStart; i < visibleEnd && linesWritten < height; i++ {
+	for i := visibleStart; i < visibleEndIdx && linesWritten < height; i++ {
+		msgIdx := pageStart + i
+
 		// Show INFO separator when transitioning from actionable to info
 		if !showedInfoSeparator && len(actionable) > 0 && len(info) > 0 {
 			// Check if we're about to show the first INFO item
 			isInfo := false
 			for _, idx := range info {
-				if idx == i {
+				if idx == msgIdx {
 					isInfo = true
 					break
 				}
@@ -177,8 +194,8 @@ func (m Model) renderList(width, height int) string {
 			}
 		}
 
-		msg := m.messages[i]
-		isSelected := i == m.cursor
+		msg := m.messages[msgIdx]
+		isSelected := msgIdx == m.cursor
 
 		// Build message line
 		line := m.renderMessageLine(&msg, width-2, isSelected)

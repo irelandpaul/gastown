@@ -3,6 +3,7 @@ package inbox
 import (
 	"fmt"
 	"os/exec"
+	"time"
 
 	"github.com/steveyegge/gastown/internal/beads"
 	"github.com/steveyegge/gastown/internal/mail"
@@ -210,5 +211,79 @@ func hookBead(beadID, address, workDir string) error {
 	if output, err := cmd.CombinedOutput(); err != nil {
 		return fmt.Errorf("hooking bead %s: %s", beadID, string(output))
 	}
+	return nil
+}
+
+// archiveInfo archives all INFO messages in the inbox.
+func archiveInfo(address, workDir string) error {
+	router := mail.NewRouter(workDir)
+	mailbox, err := router.GetMailbox(address)
+	if err != nil {
+		return err
+	}
+
+	messages, err := mailbox.List()
+	if err != nil {
+		return err
+	}
+
+	for _, mm := range messages {
+		if inferMessageType(mm) == TypeInfo {
+			if err := mailbox.Archive(mm.ID); err != nil {
+				// Continue on error for other messages
+				continue
+			}
+		}
+	}
+
+	return nil
+}
+
+// markAllRead marks all messages in the inbox as read (closes them in beads).
+func markAllRead(address, workDir string) error {
+	router := mail.NewRouter(workDir)
+	mailbox, err := router.GetMailbox(address)
+	if err != nil {
+		return err
+	}
+
+	messages, err := mailbox.List()
+	if err != nil {
+		return err
+	}
+
+	for _, mm := range messages {
+		if err := mailbox.MarkRead(mm.ID); err != nil {
+			// Continue on error for other messages
+			continue
+		}
+	}
+
+	return nil
+}
+
+// archiveOld archives messages older than 24 hours.
+func archiveOld(address, workDir string) error {
+	router := mail.NewRouter(workDir)
+	mailbox, err := router.GetMailbox(address)
+	if err != nil {
+		return err
+	}
+
+	messages, err := mailbox.List()
+	if err != nil {
+		return err
+	}
+
+	cutoff := time.Now().Add(-24 * time.Hour)
+	for _, mm := range messages {
+		if mm.Timestamp.Before(cutoff) {
+			if err := mailbox.Archive(mm.ID); err != nil {
+				// Continue on error for other messages
+				continue
+			}
+		}
+	}
+
 	return nil
 }

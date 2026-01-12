@@ -13,14 +13,19 @@ type KeyMap struct {
 	Bottom   key.Binding
 
 	// Actions
-	Approve key.Binding
-	Reject  key.Binding
-	Reply   key.Binding
-	Archive key.Binding
-	Expand  key.Binding // Phase 3: Expand bead references
-	Hook    key.Binding // Phase 3: Hook/claim bead
+	Approve    key.Binding
+	Reject     key.Binding
+	Reply      key.Binding
+	Archive    key.Binding
+	ArchiveInfo key.Binding // Phase 5: Archive all INFO messages
+	MarkAllRead key.Binding // Phase 5: Mark all messages as read
+	ArchiveOld  key.Binding // Phase 5: Archive old messages
+	Expand     key.Binding // Phase 3: Expand bead references
+	Hook       key.Binding // Phase 3: Hook/claim bead
 
 	// General
+	NextPage key.Binding // Phase 5: Next page of messages
+	PrevPage key.Binding // Phase 5: Previous page of messages
 	Tab  key.Binding
 	Help key.Binding
 	Quit key.Binding
@@ -69,6 +74,26 @@ func DefaultKeyMap() KeyMap {
 			key.WithKeys("a"),
 			key.WithHelp("a", "archive"),
 		),
+		ArchiveInfo: key.NewBinding(
+			key.WithKeys("A"),
+			key.WithHelp("A", "archive all info"),
+		),
+		MarkAllRead: key.NewBinding(
+			key.WithKeys("M"),
+			key.WithHelp("M", "mark all read"),
+		),
+		ArchiveOld: key.NewBinding(
+			key.WithKeys("D"),
+			key.WithHelp("D", "archive old"),
+		),
+		NextPage: key.NewBinding(
+			key.WithKeys("]"),
+			key.WithHelp("]", "next page"),
+		),
+		PrevPage: key.NewBinding(
+			key.WithKeys("["),
+			key.WithHelp("[", "prev page"),
+		),
 		Expand: key.NewBinding(
 			key.WithKeys("e"),
 			key.WithHelp("e", "expand beads"),
@@ -94,15 +119,16 @@ func DefaultKeyMap() KeyMap {
 
 // ShortHelp returns keybindings to show in the mini help view.
 func (k KeyMap) ShortHelp() []key.Binding {
-	return []key.Binding{k.Up, k.Down, k.Quit, k.Help}
+	return []key.Binding{k.Up, k.Down, k.Archive, k.Quit, k.Help}
 }
 
 // FullHelp returns keybindings for the expanded help view.
 func (k KeyMap) FullHelp() [][]key.Binding {
 	return [][]key.Binding{
 		{k.Up, k.Down, k.PageUp, k.PageDown},
-		{k.Top, k.Bottom, k.Tab},
+		{k.Top, k.Bottom, k.NextPage, k.PrevPage, k.Tab},
 		{k.Approve, k.Reject, k.Reply, k.Archive},
+		{k.ArchiveInfo, k.MarkAllRead, k.ArchiveOld},
 		{k.Expand, k.Hook},
 		{k.Help, k.Quit},
 	}
