@@ -30,6 +30,8 @@ type ExpandedBead struct {
 	Type        string
 	Priority    int
 	Assignee    string
+	Labels      []string
+	CreatedAt   string
 }
 
 // Model is the bubbletea model for the inbox TUI.
@@ -72,6 +74,7 @@ type Model struct {
 
 	// Phase 3: Bead expansion
 	expandedBeads []ExpandedBead // Expanded bead details for current message
+	expandCursor  int            // Selected bead in expand view
 }
 
 // New creates a new inbox TUI model.
@@ -302,6 +305,28 @@ func (m Model) updateExpandMode(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		// Exit expand view back to list
 		m.mode = ModeList
 		m.expandedBeads = nil
+		m.expandCursor = 0
+		return m, nil
+
+	case key.Matches(msg, m.keys.Up):
+		if m.expandCursor > 0 {
+			m.expandCursor--
+		}
+		return m, nil
+
+	case key.Matches(msg, m.keys.Down):
+		if m.expandCursor < len(m.expandedBeads)-1 {
+			m.expandCursor++
+		}
+		return m, nil
+
+	case key.Matches(msg, m.keys.Hook):
+		if m.expandCursor >= 0 && m.expandCursor < len(m.expandedBeads) {
+			bead := m.expandedBeads[m.expandCursor]
+			if bead.Status == "open" {
+				return m, m.doHook(bead.ID)
+			}
+		}
 		return m, nil
 	}
 
@@ -445,6 +470,18 @@ func (m Model) loadBeads(beadIDs []string) tea.Cmd {
 		return beadsLoadedMsg{
 			beads: beads,
 			err:   err,
+		}
+	}
+}
+
+// doHook creates a command to hook a bead.
+func (m Model) doHook(beadID string) tea.Cmd {
+	return func() tea.Msg {
+		err := hookBead(beadID, m.address, m.workDir)
+		return actionResultMsg{
+			action:  "Hooked " + beadID,
+			success: err == nil,
+			err:     err,
 		}
 	}
 }

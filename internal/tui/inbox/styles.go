@@ -92,6 +92,12 @@ var (
 
 	readStyle = lipgloss.NewStyle().
 			Foreground(colorRead)
+
+	// Priority styles
+	priorityUrgentStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("9")).Bold(true)
+	priorityHighStyle   = lipgloss.NewStyle().Foreground(lipgloss.Color("11"))
+	priorityNormalStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("12"))
+	priorityLowStyle    = lipgloss.NewStyle().Foreground(lipgloss.Color("8"))
 )
 
 // BadgeStyle returns the appropriate style for a message type badge.

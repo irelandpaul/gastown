@@ -478,11 +478,24 @@ func (m Model) renderExpandView() string {
 	contentHeight := m.height - 6
 	linesUsed := 0
 
-	for i, bead := range m.expandedBeads {
+	// Visible range for beads (simple scrolling)
+	visibleStart := 0
+	if m.expandCursor >= contentHeight/4 {
+		visibleStart = m.expandCursor - contentHeight/4
+	}
+
+	for i := visibleStart; i < len(m.expandedBeads); i++ {
+		bead := m.expandedBeads[i]
 		if linesUsed >= contentHeight-3 {
 			b.WriteString(dimStyle.Render(fmt.Sprintf("... and %d more beads", len(m.expandedBeads)-i)))
 			b.WriteString("\n")
 			break
+		}
+
+		isSelected := i == m.expandCursor
+		indicator := "  "
+		if isSelected {
+			indicator = "▸ "
 		}
 
 		// Bead ID and status
@@ -493,47 +506,79 @@ func (m Model) renderExpandView() string {
 			statusColor = infoBadgeStyle
 		}
 
-		beadHeader := fmt.Sprintf("%s  %s  %s",
+		priorityStr := ""
+		switch bead.Priority {
+		case 0:
+			priorityStr = priorityUrgentStyle.Render(" [URGENT]")
+		case 1:
+			priorityStr = priorityHighStyle.Render(" [HIGH]")
+		case 3:
+			priorityStr = priorityLowStyle.Render(" [LOW]")
+		}
+
+		beadHeader := fmt.Sprintf("%s%s  %s  %s%s",
+			indicator,
 			titleStyle.Render(bead.ID),
 			statusColor.Render("["+bead.Status+"]"),
-			dimStyle.Render(bead.Type))
-		b.WriteString(beadHeader)
+			dimStyle.Render(bead.Type),
+			priorityStr)
+
+		if isSelected {
+			b.WriteString(selectedStyle.Render(padRight(beadHeader, m.width-2)))
+		} else {
+			b.WriteString(beadHeader)
+		}
 		b.WriteString("\n")
 		linesUsed++
 
 		// Title
 		if bead.Title != "" {
-			b.WriteString("  ")
+			b.WriteString("    ")
 			b.WriteString(bead.Title)
+			b.WriteString("\n")
+			linesUsed++
+		}
+
+		// Labels
+		if len(bead.Labels) > 0 {
+			b.WriteString("    ")
+			b.WriteString(previewLabelStyle.Render("Labels: "))
+			b.WriteString(dimStyle.Render(strings.Join(bead.Labels, ", ")))
 			b.WriteString("\n")
 			linesUsed++
 		}
 
 		// Description (truncated)
 		if bead.Description != "" && linesUsed < contentHeight-3 {
-			descLines := wrapText(bead.Description, m.width-4)
+			descLines := wrapText(bead.Description, m.width-6)
 			maxDescLines := 2
 			for j, line := range descLines {
 				if j >= maxDescLines || linesUsed >= contentHeight-3 {
 					if len(descLines) > maxDescLines {
-						b.WriteString(dimStyle.Render("  ..."))
+						b.WriteString(dimStyle.Render("    ..."))
 						b.WriteString("\n")
 						linesUsed++
 					}
 					break
 				}
-				b.WriteString("  ")
+				b.WriteString("    ")
 				b.WriteString(dimStyle.Render(line))
 				b.WriteString("\n")
 				linesUsed++
 			}
 		}
 
-		// Assignee
-		if bead.Assignee != "" && linesUsed < contentHeight-3 {
-			b.WriteString("  ")
-			b.WriteString(previewLabelStyle.Render("Assignee: "))
-			b.WriteString(bead.Assignee)
+		// Assignee and CreatedAt
+		if (bead.Assignee != "" || bead.CreatedAt != "") && linesUsed < contentHeight-3 {
+			infoParts := []string{}
+			if bead.Assignee != "" {
+				infoParts = append(infoParts, previewLabelStyle.Render("Assignee: ")+bead.Assignee)
+			}
+			if bead.CreatedAt != "" {
+				infoParts = append(infoParts, previewLabelStyle.Render("Created: ")+dimStyle.Render(bead.CreatedAt))
+			}
+			b.WriteString("    ")
+			b.WriteString(strings.Join(infoParts, "  "))
 			b.WriteString("\n")
 			linesUsed++
 		}
@@ -554,7 +599,15 @@ func (m Model) renderExpandView() string {
 	// Footer
 	b.WriteString(dimStyle.Render(strings.Repeat("─", m.width-2)))
 	b.WriteString("\n")
-	b.WriteString(helpStyle.Render("Esc back"))
+
+	helpText := "↑↓ nav | Esc back"
+	if m.expandCursor >= 0 && m.expandCursor < len(m.expandedBeads) {
+		bead := m.expandedBeads[m.expandCursor]
+		if bead.Status == "open" {
+			helpText += " | h hook"
+		}
+	}
+	b.WriteString(helpStyle.Render(helpText))
 
 	return b.String()
 }

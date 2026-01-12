@@ -18,6 +18,7 @@ type KeyMap struct {
 	Reply   key.Binding
 	Archive key.Binding
 	Expand  key.Binding // Phase 3: Expand bead references
+	Hook    key.Binding // Phase 3: Hook/claim bead
 
 	// General
 	Tab  key.Binding
@@ -72,6 +73,10 @@ func DefaultKeyMap() KeyMap {
 			key.WithKeys("e"),
 			key.WithHelp("e", "expand beads"),
 		),
+		Hook: key.NewBinding(
+			key.WithKeys("h"),
+			key.WithHelp("h", "hook bead"),
+		),
 		Tab: key.NewBinding(
 			key.WithKeys("tab"),
 			key.WithHelp("tab", "switch pane"),
@@ -97,6 +102,8 @@ func (k KeyMap) FullHelp() [][]key.Binding {
 	return [][]key.Binding{
 		{k.Up, k.Down, k.PageUp, k.PageDown},
 		{k.Top, k.Bottom, k.Tab},
+		{k.Approve, k.Reject, k.Reply, k.Archive},
+		{k.Expand, k.Hook},
 		{k.Help, k.Quit},
 	}
 }

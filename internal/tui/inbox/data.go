@@ -1,6 +1,7 @@
 package inbox
 
 import (
+	"regexp"
 	"strings"
 
 	"github.com/steveyegge/gastown/internal/mail"
@@ -96,34 +97,30 @@ func inferMessageType(mm *mail.Message) MessageType {
 	return TypeInfo
 }
 
+// beadIDRegex matches bead IDs like gt-123, hq-cv-abc, bd-xyz.
+// Pattern: 2-4 lowercase letters, followed by one or more hyphenated alphanumeric segments.
+var beadIDRegex = regexp.MustCompile(`\b[a-z]{2,4}(-[a-z0-9.]+)+\b`)
+
 // extractReferences extracts bead IDs referenced in the message body.
 // Looks for patterns like gt-abc, bd-xyz, hq-123, sc-456.
 func extractReferences(body string) []string {
-	// Simple pattern matching for bead IDs
-	// Format: 2-3 lowercase letters + hyphen + alphanumeric
+	matches := beadIDRegex.FindAllString(body, -1)
+	if len(matches) == 0 {
+		return nil
+	}
+
+	// Use a map to de-duplicate and preserve order
+	seen := make(map[string]bool)
 	var refs []string
-	words := strings.Fields(body)
-
-	for _, word := range words {
-		// Clean punctuation
-		word = strings.Trim(word, ".,;:!?()[]{}\"'")
-
-		// Check if it looks like a bead ID
-		if len(word) >= 5 && len(word) <= 20 {
-			hyphenIdx := strings.Index(word, "-")
-			if hyphenIdx >= 2 && hyphenIdx <= 3 {
-				prefix := word[:hyphenIdx]
-				allLower := true
-				for _, c := range prefix {
-					if c < 'a' || c > 'z' {
-						allLower = false
-						break
-					}
-				}
-				if allLower {
-					refs = append(refs, word)
-				}
-			}
+	for _, match := range matches {
+		// Bead IDs are typically short (e.g. gt-123, hq-cv-abc)
+		// We limit to 25 characters to avoid matching long hyphenated text.
+		if len(match) > 25 {
+			continue
+		}
+		if !seen[match] {
+			seen[match] = true
+			refs = append(refs, match)
 		}
 	}
 

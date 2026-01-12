@@ -2,6 +2,7 @@ package inbox
 
 import (
 	"fmt"
+	"os/exec"
 
 	"github.com/steveyegge/gastown/internal/beads"
 	"github.com/steveyegge/gastown/internal/mail"
@@ -193,8 +194,21 @@ func fetchBeadDetails(beadIDs []string, workDir string) ([]ExpandedBead, error) 
 			Type:        issue.Type,
 			Priority:    issue.Priority,
 			Assignee:    issue.Assignee,
+			Labels:      issue.Labels,
+			CreatedAt:   issue.CreatedAt,
 		})
 	}
 
 	return result, nil
+}
+
+// hookBead hooks a bead for the current agent.
+func hookBead(beadID, address, workDir string) error {
+	// Use 'gt sling <bead-id>' to hook the bead to the current agent.
+	// This is the unified work dispatch command.
+	cmd := exec.Command("gt", "sling", beadID)
+	if output, err := cmd.CombinedOutput(); err != nil {
+		return fmt.Errorf("hooking bead %s: %s", beadID, string(output))
+	}
+	return nil
 }
