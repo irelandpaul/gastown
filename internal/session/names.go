@@ -26,6 +26,12 @@ func DeaconSessionName() string {
 	return HQPrefix + "deacon"
 }
 
+// MayorAidSessionName returns the session name for the Mayor's Aid agent.
+// One aid per machine - works alongside Mayor in tactical execution role.
+func MayorAidSessionName() string {
+	return HQPrefix + "mayor-aid"
+}
+
 // WitnessSessionName returns the session name for a rig's Witness agent.
 func WitnessSessionName(rig string) string {
 	return fmt.Sprintf("%s%s-witness", Prefix, rig)
@@ -76,6 +82,8 @@ func PropulsionNudgeForRole(role, workDir string) string {
 		msg = "Run `gt prime` to check patrol status and begin heartbeat cycle."
 	case "mayor":
 		msg = "Run `gt prime` to check mail and begin coordination."
+	case "aid":
+		msg = PropulsionNudge() // Aid uses same hook-based propulsion as polecats
 	default:
 		msg = PropulsionNudge()
 	}

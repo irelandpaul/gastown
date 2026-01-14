@@ -855,6 +855,7 @@ var roleIcons = map[string]string{
 	constants.RoleRefinery: constants.EmojiRefinery,
 	constants.RoleCrew:     constants.EmojiCrew,
 	constants.RolePolecat:  constants.EmojiPolecat,
+	constants.RoleAid:      constants.EmojiAid,
 	// Legacy names (for backwards compatibility)
 	"coordinator":  constants.EmojiMayor,
 	"health-check": constants.EmojiDeacon,

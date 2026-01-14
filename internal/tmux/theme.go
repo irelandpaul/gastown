@@ -40,6 +40,12 @@ func DeaconTheme() Theme {
 	return Theme{Name: "deacon", BG: "#2d1f3d", FG: "#c0b0d0"}
 }
 
+// AidTheme returns the special theme for the Mayor's Aid session.
+// Bronze/tan - complement to Mayor's gold, clearly related but distinct.
+func AidTheme() Theme {
+	return Theme{Name: "aid", BG: "#4a3728", FG: "#d4a574"}
+}
+
 // GetThemeByName finds a theme by name from the default palette.
 // Returns nil if not found.
 func GetThemeByName(name string) *Theme {

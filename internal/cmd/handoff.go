@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/spf13/cobra"
+	"github.com/steveyegge/gastown/internal/aid"
 	"github.com/steveyegge/gastown/internal/config"
 	"github.com/steveyegge/gastown/internal/constants"
 	"github.com/steveyegge/gastown/internal/events"
@@ -232,6 +233,9 @@ func resolveRoleToSession(role string) (string, error) {
 	switch strings.ToLower(role) {
 	case "mayor", "may":
 		return getMayorSessionName(), nil
+
+	case "aid":
+		return aid.SessionName(), nil
 
 	case "deacon", "dea":
 		return getDeaconSessionName(), nil
