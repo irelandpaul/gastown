@@ -40,7 +40,6 @@ type Role string
 const (
 	RoleMayor    Role = "mayor"
 	RoleDeacon   Role = "deacon"
-	RoleBoot     Role = "boot"
 	RoleWitness  Role = "witness"
 	RoleRefinery Role = "refinery"
 	RolePolecat  Role = "polecat"
@@ -284,13 +283,6 @@ func detectRole(cwd, townRoot string) RoleInfo {
 	}
 	if len(parts) >= 1 && parts[0] == "mayor" {
 		ctx.Role = RoleMayor
-		return ctx
-	}
-
-	// Check for boot role: deacon/dogs/boot/
-	// Must check before deacon since boot is under deacon directory
-	if len(parts) >= 3 && parts[0] == "deacon" && parts[1] == "dogs" && parts[2] == "boot" {
-		ctx.Role = RoleBoot
 		return ctx
 	}
 
@@ -1227,8 +1219,6 @@ func buildRoleAnnouncement(ctx RoleContext) string {
 		return "Mayor, checking in."
 	case RoleDeacon:
 		return "Deacon, checking in."
-	case RoleBoot:
-		return "Boot, checking in."
 	case RoleWitness:
 		return fmt.Sprintf("%s Witness, checking in.", ctx.Rig)
 	case RoleRefinery:
@@ -1263,8 +1253,6 @@ func getAgentIdentity(ctx RoleContext) string {
 		return "mayor"
 	case RoleDeacon:
 		return "deacon"
-	case RoleBoot:
-		return "boot"
 	case RoleWitness:
 		return fmt.Sprintf("%s/witness", ctx.Rig)
 	case RoleRefinery:
@@ -1337,9 +1325,6 @@ func getAgentBeadID(ctx RoleContext) string {
 	case RoleMayor:
 		return beads.MayorBeadIDTown()
 	case RoleDeacon:
-		return beads.DeaconBeadIDTown()
-	case RoleBoot:
-		// Boot uses deacon's bead since it's a deacon subprocess
 		return beads.DeaconBeadIDTown()
 	case RoleWitness:
 		if ctx.Rig != "" {
