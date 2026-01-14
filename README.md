@@ -2,6 +2,18 @@
 
 **Multi-agent orchestration system for Claude Code with persistent work tracking**
 
+> **Fork of [steveyegge/gastown](https://github.com/steveyegge/gastown)** with these additions:
+>
+> | Feature | Description |
+> |---------|-------------|
+> | **Mayor's Aid** | Tactical executor role (`gt aid`) for implementation work |
+> | **gt inbox TUI** | Terminal inbox with visual aging, replies, decisions |
+> | **Planner Role** | Strategic planning with review agents (proposal stage) |
+> | **gt observe** | Quick knowledge capture command |
+> | **Gemini Auto-Switch** | Auto-switch to Gemini when Claude usage > 80% |
+> | **Web GUI** | Dashboard for monitoring agents (from PR #212) |
+> | **Windows MCP** | MCPControl integration for Windows VM testing |
+
 ## Overview
 
 Gas Town is a workspace manager that lets you coordinate multiple Claude Code agents working on different tasks. Instead of losing context when agents restart, Gas Town persists work state in git-backed hooks, enabling reliable multi-agent workflows.
