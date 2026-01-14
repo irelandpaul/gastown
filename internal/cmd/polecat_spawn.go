@@ -14,6 +14,7 @@ import (
 	"github.com/steveyegge/gastown/internal/rig"
 	"github.com/steveyegge/gastown/internal/style"
 	"github.com/steveyegge/gastown/internal/tmux"
+	"github.com/steveyegge/gastown/internal/usage"
 	"github.com/steveyegge/gastown/internal/workspace"
 )
 
@@ -48,6 +49,12 @@ func SpawnPolecatForSling(rigName string, opts SlingSpawnOptions) (*SpawnedPolec
 	townRoot, err := workspace.FindFromCwdOrError()
 	if err != nil {
 		return nil, fmt.Errorf("not in a Gas Town workspace: %w", err)
+	}
+
+	// Check if we should auto-switch agent due to high Claude usage
+	// Only applies if no explicit agent override is set
+	if opts.Agent == "" {
+		opts.Agent = checkUsageAutoSwitch(townRoot)
 	}
 
 	// Load rig config
@@ -202,4 +209,39 @@ func IsRigName(target string) (string, bool) {
 	}
 
 	return target, true
+}
+
+// checkUsageAutoSwitch checks if Claude usage is high enough to auto-switch agents.
+// Returns the fallback agent name if auto-switch should happen, or empty string otherwise.
+func checkUsageAutoSwitch(townRoot string) string {
+	// Get usage config from town settings
+	cfg := config.GetUsageAutoSwitchConfig(townRoot)
+
+	// Check if auto-switch is enabled
+	if cfg.Enabled == nil || !*cfg.Enabled {
+		return ""
+	}
+
+	// Build usage config for the usage package
+	usageCfg := &usage.Config{
+		Threshold:     cfg.Threshold,
+		WeeklyLimit:   cfg.WeeklyLimit,
+		Enabled:       *cfg.Enabled,
+		FallbackAgent: cfg.FallbackAgent,
+	}
+
+	// Check if we should auto-switch
+	shouldSwitch, fallbackAgent, result := usage.ShouldAutoSwitch(usageCfg)
+	if !shouldSwitch {
+		return ""
+	}
+
+	// Print notification about auto-switch
+	fmt.Printf("%s Claude usage at %.1f%% of weekly limit - auto-switching to %s\n",
+		style.Warning.Render("⚡"),
+		result.UsagePercent,
+		fallbackAgent)
+	fmt.Printf("  (%s)\n", usage.FormatUsage(result))
+
+	return fallbackAgent
 }

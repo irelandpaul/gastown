@@ -56,6 +56,29 @@ type TownSettings struct {
 	// This allows cost optimization by using different models for different roles.
 	// Example: {"mayor": "claude-opus", "witness": "claude-haiku", "polecat": "claude-sonnet"}
 	RoleAgents map[string]string `json:"role_agents,omitempty"`
+
+	// UsageAutoSwitch configures automatic agent switching based on Claude usage.
+	// When Claude weekly usage exceeds a threshold, new spawns auto-switch to a fallback agent.
+	UsageAutoSwitch *UsageAutoSwitchConfig `json:"usage_auto_switch,omitempty"`
+}
+
+// UsageAutoSwitchConfig configures automatic agent switching based on usage thresholds.
+type UsageAutoSwitchConfig struct {
+	// Enabled controls whether usage-based auto-switching is active.
+	// Default: true
+	Enabled *bool `json:"enabled,omitempty"`
+
+	// Threshold is the percentage of weekly limit (0-100) at which to auto-switch.
+	// Default: 80
+	Threshold float64 `json:"threshold,omitempty"`
+
+	// WeeklyLimit is the weekly token limit to measure against.
+	// Default: 30000000 (30M tokens, typical Claude Pro limit)
+	WeeklyLimit int64 `json:"weekly_limit,omitempty"`
+
+	// FallbackAgent is the agent to switch to when threshold is exceeded.
+	// Default: "gemini"
+	FallbackAgent string `json:"fallback_agent,omitempty"`
 }
 
 // NewTownSettings creates a new TownSettings with defaults.
@@ -64,9 +87,54 @@ func NewTownSettings() *TownSettings {
 		Type:         "town-settings",
 		Version:      CurrentTownSettingsVersion,
 		DefaultAgent: "claude",
-		Agents:       make(map[string]*RuntimeConfig),
-		RoleAgents:   make(map[string]string),
+		Agents:          make(map[string]*RuntimeConfig),
+		RoleAgents:      make(map[string]string),
+		UsageAutoSwitch: DefaultUsageAutoSwitchConfig(),
 	}
+}
+
+// DefaultUsageAutoSwitchConfig returns the default usage auto-switch configuration.
+func DefaultUsageAutoSwitchConfig() *UsageAutoSwitchConfig {
+	enabled := true
+	return &UsageAutoSwitchConfig{
+		Enabled:       &enabled,
+		Threshold:     80,
+		WeeklyLimit:   30_000_000, // 30M tokens
+		FallbackAgent: "gemini",
+	}
+}
+
+// GetEffectiveUsageAutoSwitch returns the effective UsageAutoSwitchConfig,
+// filling in defaults for any unset fields.
+func (s *TownSettings) GetEffectiveUsageAutoSwitch() *UsageAutoSwitchConfig {
+	defaults := DefaultUsageAutoSwitchConfig()
+	if s.UsageAutoSwitch == nil {
+		return defaults
+	}
+
+	cfg := s.UsageAutoSwitch
+
+	// Apply defaults for unset fields
+	if cfg.Enabled == nil {
+		cfg.Enabled = defaults.Enabled
+	}
+	if cfg.Threshold == 0 {
+		cfg.Threshold = defaults.Threshold
+	}
+	if cfg.WeeklyLimit == 0 {
+		cfg.WeeklyLimit = defaults.WeeklyLimit
+	}
+	if cfg.FallbackAgent == "" {
+		cfg.FallbackAgent = defaults.FallbackAgent
+	}
+
+	return cfg
+}
+
+// IsUsageAutoSwitchEnabled returns true if usage auto-switch is enabled.
+func (s *TownSettings) IsUsageAutoSwitchEnabled() bool {
+	cfg := s.GetEffectiveUsageAutoSwitch()
+	return cfg.Enabled != nil && *cfg.Enabled
 }
 
 // DaemonConfig represents daemon process settings.

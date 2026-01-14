@@ -781,6 +781,16 @@ func SaveTownSettings(path string, settings *TownSettings) error {
 	return nil
 }
 
+// GetUsageAutoSwitchConfig returns the effective usage auto-switch configuration for the town.
+// If the configuration is missing or has unset fields, defaults are applied.
+func GetUsageAutoSwitchConfig(townRoot string) *UsageAutoSwitchConfig {
+	settings, err := LoadOrCreateTownSettings(TownSettingsPath(townRoot))
+	if err != nil {
+		settings = NewTownSettings()
+	}
+	return settings.GetEffectiveUsageAutoSwitch()
+}
+
 // ResolveAgentConfig resolves the agent configuration for a rig.
 // It looks up the agent by name in town settings (custom agents) and built-in presets.
 //
