@@ -86,6 +86,7 @@ type CreateOptions struct {
 	Description string
 	Parent      string
 	Actor       string // Who is creating this issue (populates created_by)
+	Ephemeral   bool   // Create as ephemeral (wisp) - not exported to JSONL
 }
 
 // UpdateOptions specifies options for updating an issue.
@@ -130,10 +131,14 @@ func (b *Beads) run(args ...string) ([]byte, error) {
 	cmd := exec.Command("bd", args...) //nolint:gosec // G204: bd is a trusted internal tool
 	cmd.Dir = b.workDir
 
-	// Set BEADS_DIR if specified (enables cross-database access)
-	if b.beadsDir != "" {
-		cmd.Env = append(os.Environ(), "BEADS_DIR="+b.beadsDir)
+	// Always explicitly set BEADS_DIR to prevent inherited env vars from
+	// causing prefix mismatches. Use explicit beadsDir if set, otherwise
+	// resolve from working directory.
+	beadsDir := b.beadsDir
+	if beadsDir == "" {
+		beadsDir = ResolveBeadsDir(b.workDir)
 	}
+	cmd.Env = append(os.Environ(), "BEADS_DIR="+beadsDir)
 
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout
@@ -142,6 +147,13 @@ func (b *Beads) run(args ...string) ([]byte, error) {
 	err := cmd.Run()
 	if err != nil {
 		return nil, b.wrapError(err, stderr.String(), args)
+	}
+
+	// Handle bd --no-daemon exit code 0 bug: when issue not found,
+	// --no-daemon exits 0 but writes error to stderr with empty stdout.
+	// Detect this case and treat as error to avoid JSON parse failures.
+	if stdout.Len() == 0 && stderr.Len() > 0 {
+		return nil, b.wrapError(fmt.Errorf("command produced no output"), stderr.String(), args)
 	}
 
 	return stdout.Bytes(), nil
@@ -167,7 +179,9 @@ func (b *Beads) wrapError(err error, stderr string, args []string) error {
 	}
 
 	// ErrNotFound is widely used for issue lookups - acceptable exception
-	if strings.Contains(stderr, "not found") || strings.Contains(stderr, "Issue not found") {
+	// Match various "not found" error patterns from bd
+	if strings.Contains(stderr, "not found") || strings.Contains(stderr, "Issue not found") ||
+		strings.Contains(stderr, "no issue found") {
 		return ErrNotFound
 	}
 
@@ -374,6 +388,9 @@ func (b *Beads) Create(opts CreateOptions) (*Issue, error) {
 	}
 	if opts.Parent != "" {
 		args = append(args, "--parent="+opts.Parent)
+	}
+	if opts.Ephemeral {
+		args = append(args, "--ephemeral")
 	}
 	// Default Actor from BD_ACTOR env var if not specified
 	actor := opts.Actor

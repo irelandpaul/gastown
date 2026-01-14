@@ -320,7 +320,17 @@ func resolvePathToSession(path string) (string, error) {
 			// Just "<rig>/polecats" without a name - need more info
 			return "", fmt.Errorf("polecats path requires name: %s/polecats/<name>", rig)
 		default:
-			// Not a known role - treat as polecat name (e.g., gastown/nux)
+			// Not a known role - check if it's a crew member before assuming polecat.
+			// Crew members exist at <townRoot>/<rig>/crew/<name>.
+			// This fixes: gt sling gt-375 gastown/max failing because max is crew, not polecat.
+			townRoot := detectTownRootFromCwd()
+			if townRoot != "" {
+				crewPath := filepath.Join(townRoot, rig, "crew", second)
+				if info, err := os.Stat(crewPath); err == nil && info.IsDir() {
+					return fmt.Sprintf("gt-%s-crew-%s", rig, second), nil
+				}
+			}
+			// Not a crew member - treat as polecat name (e.g., gastown/nux)
 			return fmt.Sprintf("gt-%s-%s", rig, secondLower), nil
 		}
 	}
@@ -448,7 +458,16 @@ func sessionWorkDir(sessionName, townRoot string) (string, error) {
 		return fmt.Sprintf("%s/%s/refinery/rig", townRoot, rig), nil
 
 	default:
-		return "", fmt.Errorf("unknown session type: %s (try specifying role explicitly)", sessionName)
+		// Assume polecat: gt-<rig>-<name> -> <townRoot>/<rig>/polecats/<name>
+		// Use session.ParseSessionName to determine rig and name
+		identity, err := session.ParseSessionName(sessionName)
+		if err != nil {
+			return "", fmt.Errorf("unknown session type: %s (%w)", sessionName, err)
+		}
+		if identity.Role != session.RolePolecat {
+			return "", fmt.Errorf("unknown session type: %s (role %s, try specifying role explicitly)", sessionName, identity.Role)
+		}
+		return fmt.Sprintf("%s/%s/polecats/%s", townRoot, identity.Rig, identity.Name), nil
 	}
 }
 
