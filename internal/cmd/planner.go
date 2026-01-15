@@ -14,29 +14,29 @@ import (
 	"github.com/steveyegge/gastown/internal/workspace"
 )
 
-// Shape command flags
+// Planner command flags
 var (
-	shapeStatusJSON bool
-	shapeShowJSON   bool
+	plannerStatusJSON bool
+	plannerShowJSON   bool
 )
 
-var shapeCmd = &cobra.Command{
-	Use:     "shape",
+var plannerCmd = &cobra.Command{
+	Use:     "planner",
 	GroupID: GroupWork,
-	Short:   "Shape specs through structured planning",
+	Short:   "Plan specs through structured planning",
 	RunE:    requireSubcommand,
-	Long: `Shape feature specs through a structured planning process.
+	Long: `Plan feature specs through a structured planning process.
 
-The shape command family manages the spec shaping workflow:
+The planner command family manages the spec planning workflow:
 1. Start a new planning session with an idea
 2. Answer clarifying questions
 3. Review the generated proposal
 4. Approve and generate the final spec
 
-This implements the "Shape before you build" discipline for AI-driven development.`,
+This implements the "Plan before you build" discipline for AI-driven development.`,
 }
 
-var shapeNewCmd = &cobra.Command{
+var plannerNewCmd = &cobra.Command{
 	Use:   "new <title>",
 	Short: "Start a new planning session",
 	Long: `Start a new planning session for a feature idea.
@@ -45,13 +45,13 @@ Creates a new planning session in the .specs/ directory and a gt:planning bead
 to track progress. The planner will ask clarifying questions to shape the spec.
 
 Examples:
-  gt shape new "Add user authentication"
-  gt shape new "Implement dark mode toggle" --idea "Allow users to switch themes"`,
+  gt planner new "Add user authentication"
+  gt planner new "Implement dark mode toggle" --idea "Allow users to switch themes"`,
 	Args: cobra.ExactArgs(1),
-	RunE: runShapeNew,
+	RunE: runPlannerNew,
 }
 
-var shapeStatusCmd = &cobra.Command{
+var plannerStatusCmd = &cobra.Command{
 	Use:   "status [session-id]",
 	Short: "Show planning session status",
 	Long: `Show the status of a planning session.
@@ -59,14 +59,14 @@ var shapeStatusCmd = &cobra.Command{
 If no session ID is provided, shows the active session.
 
 Examples:
-  gt shape status
-  gt shape status gt-plan-abc123
-  gt shape status --json`,
+  gt planner status
+  gt planner status gt-plan-abc123
+  gt planner status --json`,
 	Args: cobra.MaximumNArgs(1),
-	RunE: runShapeStatus,
+	RunE: runPlannerStatus,
 }
 
-var shapeShowCmd = &cobra.Command{
+var plannerShowCmd = &cobra.Command{
 	Use:   "show <session-id>",
 	Short: "Show planning session details",
 	Long: `Show detailed information about a planning session.
@@ -74,13 +74,13 @@ var shapeShowCmd = &cobra.Command{
 Displays the raw idea, questions, answers, and artifact paths.
 
 Examples:
-  gt shape show gt-plan-abc123
-  gt shape show gt-plan-abc123 --json`,
+  gt planner show gt-plan-abc123
+  gt planner show gt-plan-abc123 --json`,
 	Args: cobra.ExactArgs(1),
-	RunE: runShapeShow,
+	RunE: runPlannerShow,
 }
 
-var shapeListCmd = &cobra.Command{
+var plannerListCmd = &cobra.Command{
 	Use:   "list",
 	Short: "List all planning sessions",
 	Long: `List all planning sessions in the .specs/ directory.
@@ -88,12 +88,12 @@ var shapeListCmd = &cobra.Command{
 Shows session ID, title, status, and creation date.
 
 Examples:
-  gt shape list
-  gt shape list --json`,
-	RunE: runShapeList,
+  gt planner list
+  gt planner list --json`,
+	RunE: runPlannerList,
 }
 
-var shapeCancelCmd = &cobra.Command{
+var plannerCancelCmd = &cobra.Command{
 	Use:   "cancel <session-id>",
 	Short: "Cancel a planning session",
 	Long: `Cancel an active planning session.
@@ -101,12 +101,12 @@ var shapeCancelCmd = &cobra.Command{
 Marks the session as cancelled and closes the associated bead.
 
 Examples:
-  gt shape cancel gt-plan-abc123`,
+  gt planner cancel gt-plan-abc123`,
 	Args: cobra.ExactArgs(1),
-	RunE: runShapeCancel,
+	RunE: runPlannerCancel,
 }
 
-var shapeAnswerCmd = &cobra.Command{
+var plannerAnswerCmd = &cobra.Command{
 	Use:   "answer <question-id> <answer>",
 	Short: "Answer a clarifying question",
 	Long: `Answer a clarifying question in the active planning session.
@@ -115,37 +115,37 @@ The planner asks questions to clarify requirements. Use this command
 to provide answers that will be incorporated into the spec.
 
 Examples:
-  gt shape answer q1 "JWT tokens with refresh"
-  gt shape answer q2 "Support Google and GitHub OAuth"`,
+  gt planner answer q1 "JWT tokens with refresh"
+  gt planner answer q2 "Support Google and GitHub OAuth"`,
 	Args: cobra.MinimumNArgs(2),
-	RunE: runShapeAnswer,
+	RunE: runPlannerAnswer,
 }
 
-// Flags for shape new
-var shapeNewIdea string
+// Flags for planner new
+var plannerNewIdea string
 
 func init() {
 	// New command flags
-	shapeNewCmd.Flags().StringVar(&shapeNewIdea, "idea", "", "Initial idea/description for the feature")
+	plannerNewCmd.Flags().StringVar(&plannerNewIdea, "idea", "", "Initial idea/description for the feature")
 
 	// Status command flags
-	shapeStatusCmd.Flags().BoolVar(&shapeStatusJSON, "json", false, "Output as JSON")
+	plannerStatusCmd.Flags().BoolVar(&plannerStatusJSON, "json", false, "Output as JSON")
 
 	// Show command flags
-	shapeShowCmd.Flags().BoolVar(&shapeShowJSON, "json", false, "Output as JSON")
+	plannerShowCmd.Flags().BoolVar(&plannerShowJSON, "json", false, "Output as JSON")
 
 	// List command flags
-	shapeListCmd.Flags().BoolVar(&shapeStatusJSON, "json", false, "Output as JSON")
+	plannerListCmd.Flags().BoolVar(&plannerStatusJSON, "json", false, "Output as JSON")
 
 	// Add subcommands
-	shapeCmd.AddCommand(shapeNewCmd)
-	shapeCmd.AddCommand(shapeStatusCmd)
-	shapeCmd.AddCommand(shapeShowCmd)
-	shapeCmd.AddCommand(shapeListCmd)
-	shapeCmd.AddCommand(shapeCancelCmd)
-	shapeCmd.AddCommand(shapeAnswerCmd)
+	plannerCmd.AddCommand(plannerNewCmd)
+	plannerCmd.AddCommand(plannerStatusCmd)
+	plannerCmd.AddCommand(plannerShowCmd)
+	plannerCmd.AddCommand(plannerListCmd)
+	plannerCmd.AddCommand(plannerCancelCmd)
+	plannerCmd.AddCommand(plannerAnswerCmd)
 
-	rootCmd.AddCommand(shapeCmd)
+	rootCmd.AddCommand(plannerCmd)
 }
 
 // getPlannerManager creates a planner manager for the current rig.
@@ -171,9 +171,9 @@ func getPlannerManager() (*planner.Manager, *rig.Rig, error) {
 	return mgr, r, nil
 }
 
-func runShapeNew(cmd *cobra.Command, args []string) error {
+func runPlannerNew(cmd *cobra.Command, args []string) error {
 	title := args[0]
-	idea := shapeNewIdea
+	idea := plannerNewIdea
 	if idea == "" {
 		idea = title // Use title as idea if not provided
 	}
@@ -194,13 +194,13 @@ func runShapeNew(cmd *cobra.Command, args []string) error {
 	fmt.Printf("  ID: %s\n", session.ID)
 	fmt.Printf("  Title: %s\n", session.Title)
 	fmt.Printf("  Status: %s\n", style.Dim.Render(string(session.Status)))
-	fmt.Printf("\n  %s\n", style.Dim.Render("Use 'gt shape status' to check progress"))
-	fmt.Printf("  %s\n", style.Dim.Render("Use 'gt shape answer' to respond to questions"))
+	fmt.Printf("\n  %s\n", style.Dim.Render("Use 'gt planner status' to check progress"))
+	fmt.Printf("  %s\n", style.Dim.Render("Use 'gt planner answer' to respond to questions"))
 
 	return nil
 }
 
-func runShapeStatus(cmd *cobra.Command, args []string) error {
+func runPlannerStatus(cmd *cobra.Command, args []string) error {
 	mgr, _, err := getPlannerManager()
 	if err != nil {
 		return err
@@ -220,14 +220,14 @@ func runShapeStatus(cmd *cobra.Command, args []string) error {
 		if err != nil {
 			if err == planner.ErrNoActiveSession {
 				fmt.Printf("%s No active planning session\n", style.Dim.Render("○"))
-				fmt.Printf("  %s\n", style.Dim.Render("Use 'gt shape new' to start one"))
+				fmt.Printf("  %s\n", style.Dim.Render("Use 'gt planner new' to start one"))
 				return nil
 			}
 			return fmt.Errorf("getting active session: %w", err)
 		}
 	}
 
-	if shapeStatusJSON {
+	if plannerStatusJSON {
 		enc := json.NewEncoder(os.Stdout)
 		enc.SetIndent("", "  ")
 		return enc.Encode(session)
@@ -272,7 +272,7 @@ func runShapeStatus(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-func runShapeShow(cmd *cobra.Command, args []string) error {
+func runPlannerShow(cmd *cobra.Command, args []string) error {
 	sessionID := args[0]
 
 	mgr, _, err := getPlannerManager()
@@ -290,10 +290,10 @@ func runShapeShow(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("getting artifacts: %w", err)
 	}
 
-	if shapeShowJSON {
+	if plannerShowJSON {
 		output := struct {
-			Session   *planner.PlanningSession  `json:"session"`
-			Artifacts *planner.SpecArtifacts `json:"artifacts"`
+			Session   *planner.PlanningSession `json:"session"`
+			Artifacts *planner.SpecArtifacts   `json:"artifacts"`
 		}{
 			Session:   session,
 			Artifacts: artifacts,
@@ -358,7 +358,7 @@ func runShapeShow(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-func runShapeList(cmd *cobra.Command, args []string) error {
+func runPlannerList(cmd *cobra.Command, args []string) error {
 	mgr, r, err := getPlannerManager()
 	if err != nil {
 		return err
@@ -369,7 +369,7 @@ func runShapeList(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("listing sessions: %w", err)
 	}
 
-	if shapeStatusJSON {
+	if plannerStatusJSON {
 		enc := json.NewEncoder(os.Stdout)
 		enc.SetIndent("", "  ")
 		return enc.Encode(sessions)
@@ -377,7 +377,7 @@ func runShapeList(cmd *cobra.Command, args []string) error {
 
 	if len(sessions) == 0 {
 		fmt.Printf("%s No planning sessions in %s\n", style.Dim.Render("○"), r.Name)
-		fmt.Printf("  %s\n", style.Dim.Render("Use 'gt shape new' to start one"))
+		fmt.Printf("  %s\n", style.Dim.Render("Use 'gt planner new' to start one"))
 		return nil
 	}
 
@@ -405,7 +405,7 @@ func runShapeList(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-func runShapeCancel(cmd *cobra.Command, args []string) error {
+func runPlannerCancel(cmd *cobra.Command, args []string) error {
 	sessionID := args[0]
 
 	mgr, _, err := getPlannerManager()
@@ -421,7 +421,7 @@ func runShapeCancel(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-func runShapeAnswer(cmd *cobra.Command, args []string) error {
+func runPlannerAnswer(cmd *cobra.Command, args []string) error {
 	questionID := args[0]
 	answer := strings.Join(args[1:], " ")
 
@@ -433,7 +433,7 @@ func runShapeAnswer(cmd *cobra.Command, args []string) error {
 	session, err := mgr.GetActiveSession()
 	if err != nil {
 		if err == planner.ErrNoActiveSession {
-			return fmt.Errorf("no active planning session - use 'gt shape new' to start one")
+			return fmt.Errorf("no active planning session - use 'gt planner new' to start one")
 		}
 		return fmt.Errorf("getting active session: %w", err)
 	}
@@ -475,4 +475,3 @@ func runShapeAnswer(cmd *cobra.Command, args []string) error {
 
 	return nil
 }
-
