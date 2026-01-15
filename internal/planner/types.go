@@ -54,7 +54,9 @@ const (
 
 // PlanningSession represents an active planning/shaping session.
 type PlanningSession struct {
-	// ID is the unique identifier for this planning session (e.g., gt-plan-abc).
+	// ID is the unique identifier for this planning session (e.g., gt-abc).
+	// The session uses the auto-generated bead ID and is identified as a
+	// planning session via the gt:planning label.
 	ID string `json:"id"`
 
 	// Title is the human-readable title of the feature being planned.
