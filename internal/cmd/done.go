@@ -203,6 +203,15 @@ func runDone(cmd *cobra.Command, args []string) error {
 			return fmt.Errorf("cannot determine source issue from branch '%s'; use --issue to specify", branch)
 		}
 
+		// CRITICAL: Push branch to remote BEFORE creating MR bead
+		// This prevents code loss when the polecat worktree is later nuked.
+		// Without this push, the local branch only exists in the worktree.
+		fmt.Printf("Pushing branch to remote...\n")
+		if err := g.Push("origin", branch, false); err != nil {
+			return fmt.Errorf("pushing branch '%s' to origin: %w\n\nYour commits are safe locally, but the branch must be pushed before submitting to the merge queue.\nRun: git push -u origin %s", branch, err, branch)
+		}
+		fmt.Printf("%s Branch pushed to origin/%s\n", style.Bold.Render("✓"), branch)
+
 		// Initialize beads
 		bd := beads.New(beads.ResolveBeadsDir(cwd))
 

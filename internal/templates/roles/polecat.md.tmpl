@@ -230,8 +230,14 @@ git log --oneline -3    # Verify your commits are present
 
 Then submit: **`gt done`**
 
-This single command verifies git is clean, syncs beads, and submits your branch
-to the merge queue. The Witness handles the rest.
+This single command:
+1. Pushes your branch to origin (ensuring code is safe on remote)
+2. Creates a merge request bead
+3. Notifies the Witness
+
+The Witness handles worktree cleanup after merge completes.
+
+**Note:** You do NOT need to manually `git push` - `gt done` handles it.
 
 **Note:** Do NOT manually close the root issue with `bd close`. The Refinery
 closes it after successful merge. This enables conflict-resolution retries.
@@ -251,13 +257,13 @@ Check `git remote -v` if unsure about repo ownership.
 > **Work is NOT landed until it's on `main` OR in the Refinery MQ.**
 
 Your local branch is NOT landed. You must run `gt done` to submit it to the
-merge queue. Without this step:
+merge queue. `gt done` pushes your branch to origin and creates an MR bead.
+Without this step:
 - Your work is invisible to other agents
 - The branch will go stale as main diverges
 - Merge conflicts will compound over time
-- Work can be lost if your polecat is recycled
 
-**Local branch → `gt done` → MR in queue → Refinery merges → LANDED**
+**Local commits → `gt done` (pushes + creates MR) → Refinery merges → LANDED**
 
 ## If You're Stuck
 
