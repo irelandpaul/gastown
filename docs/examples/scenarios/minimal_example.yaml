@@ -1,0 +1,17 @@
+# Minimal Scenario Example
+#
+# This shows the minimum required fields for a valid scenario.
+# All other fields will use sensible defaults.
+
+scenario: minimal_login_test
+persona: sarah
+
+goal: |
+  Log in to the application and verify the dashboard loads.
+
+success_criteria:
+  - Login form accepts credentials
+  - Dashboard is displayed after login
+
+environment:
+  url: https://staging.example.com/login

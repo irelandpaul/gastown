@@ -1,0 +1,69 @@
+# AI User Testing Scenario: Registration with Common Mistakes
+#
+# This scenario tests error handling and recovery in the registration flow.
+# The AI agent intentionally makes common mistakes to evaluate error message
+# clarity and recovery UX.
+
+scenario: registration_with_errors
+version: 1
+
+# Miguel is an "overwhelmed dad" persona - less tech-savvy and more
+# likely to make mistakes during form entry.
+persona: miguel
+
+goal: |
+  Register for ScreenCoach, but make typical mistakes along the way:
+  - Enter an invalid email format first
+  - Try a weak password that fails validation
+  - Skip a required field
+  - Then correct these mistakes and complete registration
+
+  Observe:
+  - Are error messages clear and helpful?
+  - Is the recovery path obvious?
+  - Do I feel confident after fixing mistakes?
+
+success_criteria:
+  - Error messages clearly explain what's wrong
+  - Error messages suggest how to fix the issue
+  - Fields retain valid input after errors
+  - Account created after correcting all errors
+  - Process feels recoverable, not frustrating
+
+environment:
+  url: https://staging.screencoach.com/signup
+  viewport:
+    width: 1280
+    height: 720
+
+test_data:
+  email_pattern: "test+errors+{run_id}@screencoach.test"
+  email_inbox: skip_verification
+  cleanup_strategy:
+    on_success: delete_account
+    on_failure: keep
+    on_crash: mark_for_review
+
+wait_strategies:
+  network_idle: true
+  min_load_time: 500
+
+recording:
+  headed: false
+  video: true
+  trace: true
+  screenshots: true
+
+retry:
+  max_attempts: 2
+  on_errors:
+    - browser_crash
+    - timeout
+  backoff: fixed
+
+timeout: 8m
+
+tags:
+  - registration
+  - error-handling
+  - ux-friction

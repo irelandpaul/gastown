@@ -1,0 +1,99 @@
+# AI User Testing Scenario: New Parent Registration
+#
+# This scenario tests the user registration flow from the perspective of
+# a tech-comfortable parent (persona: "sarah") who wants to monitor their
+# child's screen time.
+#
+# The AI agent will navigate the registration flow, attempt to complete
+# each step, and report any friction points, confusion, or UX issues.
+
+scenario: register_new_parent
+version: 1
+
+# Persona defines the AI agent's "user profile" for this test.
+# Different personas have different levels of tech comfort and expectations.
+persona: sarah
+
+# Goal is written in user story format, describing what the persona
+# wants to accomplish and why. This guides the AI agent's decisions.
+goal: |
+  As a tech-comfortable parent, I want to register for ScreenCoach
+  so that I can start monitoring my child's screen time.
+
+  I should be able to:
+  - Create an account with my email and password
+  - Verify my email address
+  - Set up my first child's profile
+  - See the dashboard
+
+# Success criteria are specific, testable conditions that determine pass/fail.
+# The AI agent evaluates each criterion and reports which ones were met.
+success_criteria:
+  - Account creation form accepts valid input
+  - Email verification process is clear
+  - Child profile can be added successfully
+  - Dashboard displays after setup
+
+# Environment configures the target application and browser settings.
+environment:
+  url: https://staging.screencoach.com/signup
+  viewport:
+    width: 1280
+    height: 720
+
+# Test data configures how unique test data is generated and cleaned up.
+test_data:
+  # Pattern for generating unique emails. Placeholders:
+  # - {scenario}: replaced with scenario name
+  # - {run_id}: replaced with unique run identifier
+  email_pattern: "test+{scenario}+{run_id}@screencoach.test"
+
+  # Test email service for verification flows
+  email_inbox: mailhog
+
+  # Cleanup strategy for test data after run completes
+  cleanup_strategy:
+    on_success: delete_account
+    on_failure: mark_for_review
+    on_crash: cleanup_job
+
+  # Isolation ensures parallel test runs don't collide
+  isolation:
+    unique_suffix: true
+
+# Wait strategies help avoid flaky tests due to timing issues.
+wait_strategies:
+  network_idle: true
+  animation_complete: true
+  custom_selectors:
+    - "#app-loaded"
+  min_load_time: 1000
+
+# Recording configures what artifacts are captured during the test.
+recording:
+  headed: false
+  headed_verification: weekly
+  video: true
+  trace: true
+  screenshots: true
+
+# Retry configuration for handling infrastructure failures.
+retry:
+  max_attempts: 3
+  on_errors:
+    - browser_crash
+    - timeout
+    - network_error
+  not_on:
+    - test_failure
+    - blocked
+  backoff: exponential
+
+# Maximum time allowed for the entire scenario.
+timeout: 5m
+
+# Tags for filtering and categorization.
+tags:
+  - registration
+  - onboarding
+  - critical-path
