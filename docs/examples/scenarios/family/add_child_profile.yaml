@@ -1,0 +1,55 @@
+# AI User Testing Scenario: Add Child Profile
+#
+# Tests adding a new child profile to the family account.
+# Verifies the add child workflow is intuitive and accessible.
+
+scenario: add_child_profile
+version: 1
+
+persona: sarah
+
+goal: |
+  As a parent with existing children in my account, I want to add
+  a new child profile so I can monitor another child.
+
+  I should:
+  - Log in with my existing credentials
+  - Navigate to the Family page
+  - Find and click the Add Child button
+  - Fill in the child details (name, age)
+  - Save the new child profile
+  - Verify the child appears in the family list
+
+success_criteria:
+  - Can find Add Child button on Family page
+  - Add Child form/dialog opens correctly
+  - Form accepts child name
+  - Form accepts child age or birthdate
+  - Form validation shows helpful error messages
+  - Can successfully save a new child profile
+  - New child appears in the children list
+  - Can navigate back to Family page after adding
+
+environment:
+  url: http://localhost:5175/login
+  viewport:
+    width: 1280
+    height: 720
+
+test_data:
+  credentials:
+    email: "parent@demo.com"
+    password: "Demo123!"
+  new_child:
+    name: "TestChild_{run_id}"
+    age: 8
+  cleanup_strategy:
+    on_success: delete_created_child
+    on_failure: mark_for_review
+
+timeout: 4m
+
+tags:
+  - family
+  - add-child
+  - critical-path

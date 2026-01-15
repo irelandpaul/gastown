@@ -1,0 +1,51 @@
+# AI User Testing Scenario: View Family Members
+#
+# Tests viewing the Family page to see all parents and children
+# in the account. Uses a pre-configured test account with existing
+# children (Emma and Liam).
+
+scenario: view_family_members
+version: 1
+
+persona: sarah
+
+goal: |
+  As a parent who has already set up my family, I want to view my family
+  members page to see all parents and children in my account.
+
+  I should:
+  - Log in with my existing credentials
+  - Navigate to the Family page
+  - See the list of all family members (parents and children)
+  - Verify I can see my children Emma and Liam
+  - Check that each child shows their basic information
+
+success_criteria:
+  - Can log in with existing credentials
+  - Can navigate to Family page from dashboard or navigation
+  - Parents section shows parent accounts
+  - Children section shows all registered children
+  - Can see child names (Emma and Liam expected)
+  - Each child card shows age or relevant info
+  - UI clearly distinguishes between parents and children
+
+environment:
+  url: http://localhost:5175/login
+  viewport:
+    width: 1280
+    height: 720
+
+test_data:
+  credentials:
+    email: "parent@demo.com"
+    password: "Demo123!"
+  cleanup_strategy:
+    on_success: none
+    on_failure: none
+
+timeout: 3m
+
+tags:
+  - family
+  - view
+  - smoke-test

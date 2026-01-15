@@ -1,0 +1,54 @@
+# AI User Testing Scenario: Edit Child Profile
+#
+# Tests editing an existing child profile to update their details.
+# Uses the existing demo children (Emma or Liam).
+
+scenario: edit_child_profile
+version: 1
+
+persona: sarah
+
+goal: |
+  As a parent, I want to edit one of my existing children's profiles
+  to update their information.
+
+  I should:
+  - Log in with my existing credentials
+  - Navigate to the Family page
+  - Find an existing child (Emma)
+  - Click to edit the child's profile
+  - Modify some details (e.g., update age or settings)
+  - Save the changes
+  - Verify the changes are reflected in the UI
+
+success_criteria:
+  - Can find existing child (Emma) in the family list
+  - Can access edit functionality (edit button, click to edit, etc.)
+  - Edit form/page loads with current child data pre-populated
+  - Can modify child details
+  - Save button is clearly visible
+  - Changes save successfully
+  - Updated information displays correctly
+  - No data loss on other fields when editing
+
+environment:
+  url: http://localhost:5175/login
+  viewport:
+    width: 1280
+    height: 720
+
+test_data:
+  credentials:
+    email: "parent@demo.com"
+    password: "Demo123!"
+  target_child: "Emma"
+  cleanup_strategy:
+    on_success: revert_changes
+    on_failure: mark_for_review
+
+timeout: 4m
+
+tags:
+  - family
+  - edit-child
+  - critical-path
