@@ -173,17 +173,41 @@ func printBatchResult(result *batch.BatchResult) {
 	fmt.Println()
 
 	// Print stability info
-	if result.Summary.FlakeRate > 0 {
-		fmt.Println("Stability:")
-		fmt.Printf("  Flake rate this batch: %.0f%% (%d/%d)\n",
-			result.Summary.FlakeRate*100,
-			result.Summary.Errors,
-			result.ScenariosRun)
-	}
+	hasStabilityInfo := result.Summary.FlakeRate > 0 ||
+		len(result.Summary.AutoQuarantined) > 0 ||
+		len(result.Summary.AutoUnquarantined) > 0 ||
+		len(result.Summary.FlakyScenarios) > 0 ||
+		len(result.Summary.NewQuarantineCandidates) > 0
 
-	if len(result.Summary.NewQuarantineCandidates) > 0 {
-		fmt.Printf("  New quarantine candidates: %s (investigate)\n",
-			strings.Join(result.Summary.NewQuarantineCandidates, ", "))
+	if hasStabilityInfo {
+		fmt.Println("Stability:")
+		if result.Summary.FlakeRate > 0 {
+			failCount := result.Summary.Failed + result.Summary.Errors
+			fmt.Printf("  Flake rate this batch: %.0f%% (%d/%d)\n",
+				result.Summary.FlakeRate*100,
+				failCount,
+				result.ScenariosRun)
+		}
+
+		if len(result.Summary.AutoQuarantined) > 0 {
+			fmt.Printf("  Auto-quarantined: %s\n",
+				strings.Join(result.Summary.AutoQuarantined, ", "))
+		}
+
+		if len(result.Summary.AutoUnquarantined) > 0 {
+			fmt.Printf("  Auto-unquarantined: %s\n",
+				strings.Join(result.Summary.AutoUnquarantined, ", "))
+		}
+
+		if len(result.Summary.FlakyScenarios) > 0 {
+			fmt.Printf("  Flaky (flagged): %s\n",
+				strings.Join(result.Summary.FlakyScenarios, ", "))
+		}
+
+		if len(result.Summary.NewQuarantineCandidates) > 0 {
+			fmt.Printf("  Quarantine candidates: %s (investigate)\n",
+				strings.Join(result.Summary.NewQuarantineCandidates, ", "))
+		}
 	}
 
 	// Print output location

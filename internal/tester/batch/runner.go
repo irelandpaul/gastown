@@ -11,6 +11,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/steveyegge/gastown/internal/tester/flake"
 )
 
 // Runner executes batch test runs.
@@ -18,11 +20,20 @@ type Runner struct {
 	// config is the batch configuration.
 	config Config
 
-	// quarantineStore tracks quarantined scenarios.
+	// quarantineStore tracks quarantined scenarios (legacy, kept for compatibility).
 	quarantineStore *QuarantineStore
+
+	// flakeDetector tracks flake metrics and handles quarantine.
+	flakeDetector *flake.Detector
 
 	// baseDir is the base directory for results.
 	baseDir string
+
+	// batchID is the current batch run ID (set during Run).
+	batchID string
+
+	// quarantineActions collects actions taken during the batch.
+	quarantineActions []flake.QuarantineAction
 }
 
 // NewRunner creates a new batch runner.
@@ -32,17 +43,31 @@ func NewRunner(config Config) (*Runner, error) {
 		return nil, fmt.Errorf("failed to create quarantine store: %w", err)
 	}
 
+	// Initialize flake detector with default config
+	flakeConfig := flake.DefaultConfig()
+	detector, err := flake.NewDetector(
+		filepath.Join(config.OutputDir, ".flake-data.json"),
+		flakeConfig,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create flake detector: %w", err)
+	}
+
 	return &Runner{
 		config:          config,
 		quarantineStore: store,
+		flakeDetector:   detector,
 		baseDir:         config.OutputDir,
 	}, nil
 }
 
 // Run executes the batch and returns the results.
 func (r *Runner) Run(ctx context.Context) (*BatchResult, error) {
+	r.batchID = generateBatchID()
+	r.quarantineActions = nil // Reset actions for this run
+
 	result := &BatchResult{
-		ID:        generateBatchID(),
+		ID:        r.batchID,
 		Config:    r.config,
 		StartedAt: time.Now(),
 		Summary: BatchSummary{
@@ -61,17 +86,25 @@ func (r *Runner) Run(ctx context.Context) (*BatchResult, error) {
 	filtered := r.filterScenarios(scenarios)
 
 	// Separate quarantined from runnable
+	// Check both legacy store and new flake detector
 	var runnable []string
 	var skipped []ScenarioResult
 
 	for _, s := range filtered {
-		if r.quarantineStore.IsQuarantined(s) && !r.config.IncludeQuarantined {
+		name := strings.TrimSuffix(filepath.Base(s), filepath.Ext(s))
+		isQuarantined := r.quarantineStore.IsQuarantined(s) || r.flakeDetector.IsQuarantined(name)
+
+		if isQuarantined && !r.config.IncludeQuarantined {
+			skipReason := "quarantined"
+			if entry := r.flakeDetector.GetQuarantineEntry(name); entry != nil {
+				skipReason = fmt.Sprintf("quarantined: %s", entry.Reason)
+			}
 			skipped = append(skipped, ScenarioResult{
-				Scenario:    filepath.Base(s),
+				Scenario:    name,
 				Path:        s,
 				Status:      StatusSkipped,
 				Quarantined: true,
-				SkipReason:  "quarantined",
+				SkipReason:  skipReason,
 			})
 		} else {
 			runnable = append(runnable, s)
@@ -301,6 +334,7 @@ func (r *Runner) runSingleScenario(ctx context.Context, scenarioPath string) Sce
 		result.Status = StatusSkipped
 		result.SkipReason = "context cancelled"
 		result.Duration = time.Since(start)
+		// Record skip as a run outcome (but don't count against flake rate)
 		return result
 	default:
 	}
@@ -317,7 +351,98 @@ func (r *Runner) runSingleScenario(ctx context.Context, scenarioPath string) Sce
 	runID := generateRunID()
 	result.ArtifactDir = filepath.Join(r.baseDir, dateDir, name, fmt.Sprintf("run-%s", runID))
 
+	// Record the run outcome with the flake detector
+	r.recordRunOutcome(name, result)
+
 	return result
+}
+
+// recordRunOutcome records a scenario run with the flake detector.
+func (r *Runner) recordRunOutcome(scenario string, result ScenarioResult) {
+	// Convert batch status to flake outcome
+	var outcome flake.RunOutcome
+	var isInfraError bool
+
+	switch result.Status {
+	case StatusPassed:
+		outcome = flake.OutcomePass
+	case StatusFailed:
+		outcome = flake.OutcomeFail
+	case StatusError:
+		outcome = flake.OutcomeError
+		// Check if it's an infrastructure error based on error message
+		if result.Error != "" {
+			isInfraError = isInfrastructureError(result.Error)
+		}
+	case StatusSkipped:
+		outcome = flake.OutcomeSkip
+	default:
+		outcome = flake.OutcomeError
+	}
+
+	record := flake.RunRecord{
+		Timestamp:           time.Now(),
+		Outcome:             outcome,
+		RetryCount:          result.RetryCount,
+		Duration:            result.Duration,
+		BatchID:             r.batchID,
+		ErrorType:           categorizeError(result.Error),
+		InfrastructureError: isInfraError,
+	}
+
+	// Record and collect any quarantine actions
+	actions, err := r.flakeDetector.RecordRun(scenario, record)
+	if err != nil {
+		// Log but don't fail the run
+		fmt.Printf("Warning: failed to record run for %s: %v\n", scenario, err)
+		return
+	}
+
+	// Collect actions for summary
+	if len(actions) > 0 {
+		r.quarantineActions = append(r.quarantineActions, actions...)
+	}
+}
+
+// isInfrastructureError checks if an error is infrastructure-related.
+func isInfrastructureError(errMsg string) bool {
+	infraPatterns := []string{
+		"timeout",
+		"browser crash",
+		"network error",
+		"connection refused",
+		"context deadline exceeded",
+		"playwright",
+		"chromium",
+		"failed to launch",
+	}
+	lower := strings.ToLower(errMsg)
+	for _, pattern := range infraPatterns {
+		if strings.Contains(lower, pattern) {
+			return true
+		}
+	}
+	return false
+}
+
+// categorizeError extracts an error type from an error message.
+func categorizeError(errMsg string) string {
+	if errMsg == "" {
+		return ""
+	}
+	lower := strings.ToLower(errMsg)
+	switch {
+	case strings.Contains(lower, "timeout"):
+		return "timeout"
+	case strings.Contains(lower, "browser") || strings.Contains(lower, "chromium"):
+		return "browser_crash"
+	case strings.Contains(lower, "network") || strings.Contains(lower, "connection"):
+		return "network_error"
+	case strings.Contains(lower, "assertion") || strings.Contains(lower, "criteria"):
+		return "test_failure"
+	default:
+		return "unknown"
+	}
 }
 
 // calculateSummary calculates the batch summary statistics.
@@ -341,16 +466,33 @@ func (r *Runner) calculateSummary(result *BatchResult) {
 		}
 	}
 
-	// Calculate flake rate
+	// Calculate flake rate (failures + errors / total run)
 	total := result.Summary.Passed + result.Summary.Failed + result.Summary.Errors
 	if total > 0 {
-		result.Summary.FlakeRate = float64(result.Summary.Errors) / float64(total)
+		result.Summary.FlakeRate = float64(result.Summary.Failed+result.Summary.Errors) / float64(total)
 	}
 
-	// Identify quarantine candidates (scenarios that failed this run)
+	// Process quarantine actions taken during this batch
+	for _, action := range r.quarantineActions {
+		switch action.Action {
+		case "quarantine":
+			result.Summary.AutoQuarantined = append(result.Summary.AutoQuarantined, action.Scenario)
+		case "unquarantine":
+			result.Summary.AutoUnquarantined = append(result.Summary.AutoUnquarantined, action.Scenario)
+		case "flag":
+			result.Summary.FlakyScenarios = append(result.Summary.FlakyScenarios, action.Scenario)
+		}
+	}
+
+	// Identify quarantine candidates (scenarios that failed but weren't auto-quarantined)
+	autoQuarantinedSet := make(map[string]bool)
+	for _, s := range result.Summary.AutoQuarantined {
+		autoQuarantinedSet[s] = true
+	}
+
 	for _, sr := range result.Results {
 		if sr.Status == StatusFailed || sr.Status == StatusError {
-			if !sr.Quarantined {
+			if !sr.Quarantined && !autoQuarantinedSet[sr.Scenario] {
 				result.Summary.NewQuarantineCandidates = append(
 					result.Summary.NewQuarantineCandidates,
 					sr.Scenario,

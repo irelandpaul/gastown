@@ -187,6 +187,15 @@ type BatchSummary struct {
 
 	// NewQuarantineCandidates are scenarios that might need quarantining.
 	NewQuarantineCandidates []string `json:"new_quarantine_candidates,omitempty"`
+
+	// AutoQuarantined are scenarios that were auto-quarantined during this batch.
+	AutoQuarantined []string `json:"auto_quarantined,omitempty"`
+
+	// AutoUnquarantined are scenarios that were auto-unquarantined during this batch.
+	AutoUnquarantined []string `json:"auto_unquarantined,omitempty"`
+
+	// FlakyScenarios are scenarios detected as flaky (but not yet quarantined).
+	FlakyScenarios []string `json:"flaky_scenarios,omitempty"`
 }
 
 // PreflightResult holds the result of preflight checks.
