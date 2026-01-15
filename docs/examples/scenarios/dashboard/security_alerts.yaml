@@ -1,0 +1,73 @@
+# AI User Testing Scenario: Security Alerts and Notifications
+#
+# Tests the security alerts feature on the Activity page and
+# notification settings. Based on ActivityPage tamper alert handling.
+
+scenario: dashboard_security_alerts
+version: 1
+
+persona: sarah
+
+goal: |
+  As a registered parent, I want to see and manage security alerts
+  so I know when monitoring may have been tampered with.
+
+  I should be able to:
+  - Log in and navigate to Activity page
+  - See unacknowledged security alerts if any exist
+  - Understand alert types (extension disabled, uninstalled, tampered, heartbeat timeout)
+  - Acknowledge alerts to dismiss them
+  - Navigate to notification settings
+
+success_criteria:
+  - Security alerts banner appears when alerts exist
+  - Alert icons indicate type (shield icons for different states)
+  - Alert messages are clear and actionable
+  - Acknowledge button works to dismiss alerts
+  - Notification settings page (/settings/notifications) is accessible
+  - Alert count is displayed in header
+
+environment:
+  url: http://localhost:5175
+  viewport:
+    width: 1280
+    height: 720
+
+test_data:
+  use_existing_account: true
+  credentials:
+    email: "parent@demo.com"
+    password: "Demo123!"
+  cleanup_strategy:
+    on_success: none
+    on_failure: none
+
+wait_strategies:
+  network_idle: true
+  animation_complete: true
+  min_load_time: 1500
+
+recording:
+  headed: false
+  video: true
+  trace: true
+  screenshots: true
+
+retry:
+  max_attempts: 3
+  on_errors:
+    - browser_crash
+    - timeout
+    - network_error
+  not_on:
+    - test_failure
+    - blocked
+  backoff: exponential
+
+timeout: 3m
+
+tags:
+  - dashboard
+  - security
+  - alerts
+  - notifications

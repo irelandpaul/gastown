@@ -1,0 +1,72 @@
+# AI User Testing Scenario: Domain Drilldown
+#
+# Tests the domain drilldown feature where clicking on a domain
+# in the summary view shows detailed visit information.
+
+scenario: dashboard_domain_drilldown
+version: 1
+
+persona: sarah
+
+goal: |
+  As a registered parent, I want to click on a domain in the activity
+  summary to see detailed information about visits to that domain.
+
+  I should be able to:
+  - Log in and navigate to Activity page
+  - View the Domains summary showing visited domains
+  - Click on a domain to see drilldown details
+  - View individual page visits within that domain
+  - Navigate back to the summary view
+
+success_criteria:
+  - Domain summary view shows list of visited domains
+  - Clicking a domain switches to drilldown view
+  - Drilldown shows detailed visits for selected domain
+  - Back button returns to summary view
+  - Visit details include timestamps and page titles
+
+environment:
+  url: http://localhost:5175
+  viewport:
+    width: 1280
+    height: 720
+
+test_data:
+  use_existing_account: true
+  credentials:
+    email: "parent@demo.com"
+    password: "Demo123!"
+  cleanup_strategy:
+    on_success: none
+    on_failure: none
+
+wait_strategies:
+  network_idle: true
+  animation_complete: true
+  min_load_time: 1500
+
+recording:
+  headed: false
+  video: true
+  trace: true
+  screenshots: true
+
+retry:
+  max_attempts: 3
+  on_errors:
+    - browser_crash
+    - timeout
+    - network_error
+  not_on:
+    - test_failure
+    - blocked
+  backoff: exponential
+
+timeout: 4m
+
+tags:
+  - dashboard
+  - activity
+  - domain-drilldown
+  - details

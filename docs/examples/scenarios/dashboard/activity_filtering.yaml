@@ -1,0 +1,73 @@
+# AI User Testing Scenario: Activity Filtering and Date Ranges
+#
+# Tests the activity page filtering capabilities including date ranges
+# and device selection. Based on ActivityPage.tsx components.
+
+scenario: dashboard_activity_filtering
+version: 1
+
+persona: sarah
+
+goal: |
+  As a registered parent, I want to filter activity data by date range
+  and device so that I can focus on specific time periods or children.
+
+  I should be able to:
+  - Log in and navigate to Activity page
+  - Use the date range selector (Today, Yesterday, Last 7 Days)
+  - Filter by specific device
+  - Toggle "Blocked Only" filter in stream view
+  - See filtered results update immediately
+
+success_criteria:
+  - Date range dropdown is visible and functional
+  - Can select Today, Yesterday, and Last 7 Days options
+  - Device dropdown shows available devices
+  - Filtering by device updates the activity list
+  - Blocked Only toggle works in stream view
+  - Stats update to reflect filtered data
+
+environment:
+  url: http://localhost:5175
+  viewport:
+    width: 1280
+    height: 720
+
+test_data:
+  use_existing_account: true
+  credentials:
+    email: "parent@demo.com"
+    password: "Demo123!"
+  cleanup_strategy:
+    on_success: none
+    on_failure: none
+
+wait_strategies:
+  network_idle: true
+  animation_complete: true
+  min_load_time: 1500
+
+recording:
+  headed: false
+  video: true
+  trace: true
+  screenshots: true
+
+retry:
+  max_attempts: 3
+  on_errors:
+    - browser_crash
+    - timeout
+    - network_error
+  not_on:
+    - test_failure
+    - blocked
+  backoff: exponential
+
+timeout: 4m
+
+tags:
+  - dashboard
+  - activity
+  - filtering
+  - date-range

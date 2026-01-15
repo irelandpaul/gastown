@@ -1,0 +1,73 @@
+# AI User Testing Scenario: Devices Management
+#
+# Tests the devices page functionality for viewing and managing
+# monitored devices. Based on /devices and /devices/:id routes.
+
+scenario: dashboard_devices_management
+version: 1
+
+persona: sarah
+
+goal: |
+  As a registered parent, I want to view and manage the devices
+  being monitored so I can see which devices are active.
+
+  I should be able to:
+  - Log in and navigate to Devices page
+  - See a list of registered devices
+  - View device status (ACTIVE, etc.)
+  - Click on a device to see details
+  - View device information and settings
+
+success_criteria:
+  - Devices page loads at /devices
+  - Device list shows registered devices or empty state
+  - Device cards show name and status
+  - Clicking device navigates to /devices/:deviceId
+  - Device details page shows device information
+  - Can navigate back to devices list
+
+environment:
+  url: http://localhost:5175
+  viewport:
+    width: 1280
+    height: 720
+
+test_data:
+  use_existing_account: true
+  credentials:
+    email: "parent@demo.com"
+    password: "Demo123!"
+  cleanup_strategy:
+    on_success: none
+    on_failure: none
+
+wait_strategies:
+  network_idle: true
+  animation_complete: true
+  min_load_time: 1500
+
+recording:
+  headed: false
+  video: true
+  trace: true
+  screenshots: true
+
+retry:
+  max_attempts: 3
+  on_errors:
+    - browser_crash
+    - timeout
+    - network_error
+  not_on:
+    - test_failure
+    - blocked
+  backoff: exponential
+
+timeout: 3m
+
+tags:
+  - dashboard
+  - devices
+  - management
+  - details
