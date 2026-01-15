@@ -1,0 +1,75 @@
+# AI User Testing Scenario: New User Signup
+#
+# This scenario tests the complete signup flow for a new user.
+# The AI agent will create a new account and verify the process
+# is intuitive and completes successfully.
+
+scenario: signup_new_user
+version: 1
+
+persona: sarah
+
+goal: |
+  As a new parent user, I want to create a ScreenCoach account
+  so that I can start monitoring my child's screen time.
+
+  I should be able to:
+  - Find the signup page easily
+  - Fill out registration form
+  - Create account with valid information
+  - Understand any verification steps
+  - Access the app after registration
+
+success_criteria:
+  - Signup page is accessible from login page
+  - Registration form has clear labels
+  - Password requirements are visible
+  - Form validates input before submission
+  - Success confirmation is shown after registration
+  - User can proceed to use the app
+
+environment:
+  url: http://localhost:5175/signup
+  viewport:
+    width: 1280
+    height: 720
+
+test_data:
+  email_pattern: "test+signup+{run_id}@screencoach.test"
+  email_inbox: skip_verification
+  cleanup_strategy:
+    on_success: delete_account
+    on_failure: mark_for_review
+    on_crash: cleanup_job
+  isolation:
+    unique_suffix: true
+
+wait_strategies:
+  network_idle: true
+  animation_complete: true
+  min_load_time: 500
+
+recording:
+  headed: false
+  video: true
+  trace: true
+  screenshots: true
+
+retry:
+  max_attempts: 2
+  on_errors:
+    - browser_crash
+    - timeout
+    - network_error
+  not_on:
+    - test_failure
+  backoff: exponential
+
+timeout: 5m
+
+tags:
+  - auth
+  - signup
+  - registration
+  - critical-path
+  - onboarding

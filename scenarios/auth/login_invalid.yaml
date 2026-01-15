@@ -1,0 +1,78 @@
+# AI User Testing Scenario: Login with Invalid Credentials
+#
+# This scenario tests the login flow with invalid credentials.
+# The AI agent will attempt to log in with wrong passwords and
+# non-existent emails to verify proper error handling.
+
+scenario: login_invalid
+version: 1
+
+persona: sarah
+
+goal: |
+  As a user who made a mistake entering credentials, I want to see
+  clear error messages so that I understand what went wrong.
+
+  I should be able to:
+  - See an error when using wrong password
+  - See an error when using non-existent email
+  - Understand what I need to fix
+  - Not be locked out after a few attempts
+
+success_criteria:
+  - Wrong password shows clear error message
+  - Non-existent email shows appropriate error
+  - Error messages are user-friendly (not technical)
+  - Form remains usable after errors
+  - No sensitive information leaked in errors
+
+environment:
+  url: http://localhost:5175/login
+  viewport:
+    width: 1280
+    height: 720
+
+test_data:
+  # Invalid credential combinations to test
+  invalid_credentials:
+    - email: "parent@demo.com"
+      password: "WrongPassword123!"
+      expected_error: "invalid_credentials"
+    - email: "nonexistent@example.com"
+      password: "Demo123!"
+      expected_error: "user_not_found"
+    - email: "notanemail"
+      password: "Demo123!"
+      expected_error: "invalid_email_format"
+  cleanup_strategy:
+    on_success: keep
+    on_failure: keep
+    on_crash: keep
+
+wait_strategies:
+  network_idle: true
+  animation_complete: true
+  min_load_time: 500
+
+recording:
+  headed: false
+  video: true
+  trace: true
+  screenshots: true
+
+retry:
+  max_attempts: 2
+  on_errors:
+    - browser_crash
+    - timeout
+  not_on:
+    - test_failure
+  backoff: exponential
+
+timeout: 3m
+
+tags:
+  - auth
+  - login
+  - error-handling
+  - negative-test

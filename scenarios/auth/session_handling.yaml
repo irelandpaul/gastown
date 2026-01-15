@@ -1,0 +1,72 @@
+# AI User Testing Scenario: Session Handling
+#
+# This scenario tests session persistence and logout functionality.
+# The AI agent will verify sessions work correctly across page
+# navigations and that logout properly clears the session.
+
+scenario: session_handling
+version: 1
+
+persona: mike
+
+goal: |
+  As a logged-in user, I want my session to persist correctly
+  so that I don't have to log in repeatedly, and I want to be
+  able to log out when I'm done.
+
+  I should be able to:
+  - Stay logged in while navigating the app
+  - Find the logout option easily
+  - Log out successfully
+  - Be redirected to login page after logout
+  - Not access protected pages after logout
+
+success_criteria:
+  - Session persists across page navigation
+  - Logout button/link is easily found
+  - Logout clears session completely
+  - Protected pages redirect to login after logout
+  - No session data remains after logout
+
+environment:
+  url: http://localhost:5175/login
+  viewport:
+    width: 1280
+    height: 720
+
+test_data:
+  credentials:
+    email: "parent@demo.com"
+    password: "Demo123!"
+  cleanup_strategy:
+    on_success: keep
+    on_failure: keep
+    on_crash: keep
+
+wait_strategies:
+  network_idle: true
+  animation_complete: true
+  min_load_time: 500
+
+recording:
+  headed: false
+  video: true
+  trace: true
+  screenshots: true
+
+retry:
+  max_attempts: 2
+  on_errors:
+    - browser_crash
+    - timeout
+  not_on:
+    - test_failure
+  backoff: exponential
+
+timeout: 3m
+
+tags:
+  - auth
+  - session
+  - logout
+  - security

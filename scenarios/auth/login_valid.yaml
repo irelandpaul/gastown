@@ -1,0 +1,72 @@
+# AI User Testing Scenario: Login with Valid Credentials
+#
+# This scenario tests the login flow with valid credentials.
+# The AI agent will attempt to log in as an existing user and verify
+# successful authentication and redirect to dashboard.
+
+scenario: login_valid
+version: 1
+
+persona: sarah
+
+goal: |
+  As a returning parent user, I want to log into ScreenCoach
+  so that I can view my child's screen time dashboard.
+
+  I should be able to:
+  - Navigate to the login page
+  - Enter my email and password
+  - Submit the form successfully
+  - See the dashboard after login
+
+success_criteria:
+  - Login page loads without errors
+  - Email and password fields accept input
+  - Login button is visible and clickable
+  - Successful login redirects to dashboard
+  - User session is established
+
+environment:
+  url: http://localhost:5175/login
+  viewport:
+    width: 1280
+    height: 720
+
+test_data:
+  # Use fixed demo credentials for this test
+  credentials:
+    email: "parent@demo.com"
+    password: "Demo123!"
+  cleanup_strategy:
+    on_success: keep
+    on_failure: keep
+    on_crash: keep
+
+wait_strategies:
+  network_idle: true
+  animation_complete: true
+  min_load_time: 500
+
+recording:
+  headed: false
+  video: true
+  trace: true
+  screenshots: true
+
+retry:
+  max_attempts: 2
+  on_errors:
+    - browser_crash
+    - timeout
+    - network_error
+  not_on:
+    - test_failure
+  backoff: exponential
+
+timeout: 2m
+
+tags:
+  - auth
+  - login
+  - critical-path
+  - happy-path
