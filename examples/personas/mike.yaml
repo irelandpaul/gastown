@@ -1,0 +1,18 @@
+# Mike: Tech Savvy Parent
+# A power user who expects modern, efficient UI.
+# Use this persona to test advanced features and performance expectations.
+
+name: Mike
+role: parent
+context: |
+  Software developer, has 1 kid (age 10).
+  Researched multiple screen time apps before choosing ScreenCoach.
+  Expects modern, responsive UI and efficient workflows.
+  Will abandon app if it feels outdated or clunky.
+tech_comfort: high
+patience: low
+device: desktop
+tags:
+  - tech-savvy
+  - power-user
+  - parent

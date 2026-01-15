@@ -1,0 +1,18 @@
+# Emma: Mobile-First Parent
+# A busy professional who primarily uses their phone.
+# Use this persona to test mobile responsiveness and quick-action workflows.
+
+name: Emma
+role: parent
+context: |
+  Busy professional, has 3 kids (ages 6, 9, 14).
+  Primarily uses phone for everything, rarely on desktop.
+  Wants quick actions and notifications, not detailed dashboards.
+  Often multitasking while using the app.
+tech_comfort: medium
+patience: low
+device: mobile
+tags:
+  - mobile-first
+  - busy
+  - parent

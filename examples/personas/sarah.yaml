@@ -1,0 +1,19 @@
+# Sarah: Low Tech Parent
+# A first-time user who found ScreenCoach through school recommendation.
+# Use this persona to test onboarding flows and clarity for non-technical users.
+
+name: Sarah
+role: parent
+context: |
+  First-time user, not tech-savvy, has 2 kids (ages 8 and 12).
+  Found ScreenCoach through school recommendation.
+  Works part-time, usually accesses the app in evenings.
+  Wants simple solutions, gets overwhelmed by too many options.
+tech_comfort: low
+patience: medium
+device: desktop
+tags:
+  - low-tech
+  - new-user
+  - parent
+  - critical-path
