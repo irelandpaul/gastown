@@ -32,6 +32,7 @@ MANAGING SCENARIOS:
 
 VIEWING RESULTS:
   gt tester results [date]           View test results
+  gt tester review                   Review and validate observations
   gt tester artifacts <run-path>     Open test artifacts
 
 BATCH EXECUTION:
