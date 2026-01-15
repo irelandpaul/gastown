@@ -1,0 +1,112 @@
+# AI User Testing Scenario: Child Profile Management
+#
+# This scenario tests the child profile management flows from the perspective
+# of an existing parent user who wants to add and configure a new child profile.
+#
+# The AI agent will navigate the profile management features, test various
+# settings, and report any friction points, confusion, or UX issues.
+
+scenario: child_profile_management
+version: 1
+
+# Persona defines the AI agent's "user profile" for this test.
+# Using Sarah (low-tech parent) to ensure the flow is accessible.
+persona: sarah
+
+# Goal is written in user story format, describing what the persona
+# wants to accomplish and why. This guides the AI agent's decisions.
+goal: |
+  As a parent who already has an account, I want to add a new child profile
+  and configure their screen time settings so that I can start monitoring
+  their device usage.
+
+  Starting from the dashboard, I should be able to:
+  - Navigate to profile management
+  - Add a new child profile with name and age
+  - Configure basic screen time limits
+  - Set up allowed apps or categories
+  - Save and see the child appear on my dashboard
+
+  I have one existing child profile and am adding a second child.
+
+# Success criteria are specific, testable conditions that determine pass/fail.
+# The AI agent evaluates each criterion and reports which ones were met.
+success_criteria:
+  - Can find the "Add Child" or profile management option from dashboard
+  - Child profile form accepts name and age/birthdate
+  - Screen time limit configuration is understandable
+  - Can set daily time limits (weekday vs weekend options available)
+  - App or category selection is intuitive
+  - Profile saves successfully
+  - New child profile appears on dashboard
+  - Can navigate back to dashboard easily
+
+# Environment configures the target application and browser settings.
+environment:
+  url: http://localhost:5175/dashboard
+  viewport:
+    width: 1280
+    height: 720
+
+# Test data configures how unique test data is generated and cleaned up.
+test_data:
+  # This test requires a pre-existing account with one child profile.
+  # The test will add a second child profile.
+  email_pattern: "test+{scenario}+{run_id}@screencoach.test"
+
+  # Use skip_verification since we'll use a pre-seeded test account
+  email_inbox: skip_verification
+
+  # Pre-seeded data that should exist before test runs
+  preconditions:
+    - account_exists: true
+    - existing_children: 1
+
+  # Cleanup strategy for test data after run completes
+  cleanup_strategy:
+    on_success: delete_account
+    on_failure: mark_for_review
+    on_crash: cleanup_job
+
+  # Isolation ensures parallel test runs don't collide
+  isolation:
+    unique_suffix: true
+
+# Wait strategies help avoid flaky tests due to timing issues.
+wait_strategies:
+  network_idle: true
+  animation_complete: true
+  custom_selectors:
+    - "#dashboard-loaded"
+    - ".profile-list"
+  min_load_time: 1000
+
+# Recording configures what artifacts are captured during the test.
+recording:
+  headed: false
+  headed_verification: weekly
+  video: true
+  trace: true
+  screenshots: true
+
+# Retry configuration for handling infrastructure failures.
+retry:
+  max_attempts: 3
+  on_errors:
+    - browser_crash
+    - timeout
+    - network_error
+  not_on:
+    - test_failure
+    - blocked
+  backoff: exponential
+
+# Maximum time allowed for the entire scenario.
+timeout: 5m
+
+# Tags for filtering and categorization.
+tags:
+  - profile-management
+  - child-profile
+  - settings
+  - critical-path
