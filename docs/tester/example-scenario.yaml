@@ -1,0 +1,113 @@
+# Example Scenario: Sarah Registers
+# This is a reference scenario for AI User Testing
+#
+# Scenarios define what a user persona is trying to accomplish
+# and how the test should be configured.
+
+scenario: sarah_registers
+version: 1
+description: "First-time parent registration"
+tags:
+  - registration
+  - critical-path
+  - p0
+
+# User Story Format (Recommended)
+# Defines the persona inline with their goal
+user_story:
+  name: new_parent_registration
+  persona: Sarah, first-time parent, not tech-savvy, 2 kids ages 8 and 11
+  goal: Register for ScreenCoach and set up profiles for both children
+  context: |
+    Found ScreenCoach through school newsletter.
+    Wants to limit gaming during homework hours.
+    Has never used parental control software before.
+    Uses an iPhone but testing on web today.
+
+# Target Application
+target:
+  app: parent-portal
+  environment: staging
+  base_url: https://staging.screencoach.example.com
+
+# High-level steps (agent interprets these)
+steps:
+  - Navigate to homepage
+  - Find and click registration
+  - Complete signup form with email and password
+  - Verify email (or skip if test mode)
+  - Add first child (age 8)
+  - Add second child (age 11)
+  - View dashboard with both children
+
+# What defines success
+success_criteria:
+  - Account created successfully
+  - Both child profiles added
+  - Dashboard visible with children listed
+  - No P0 or P1 blocking issues encountered
+
+# Wait strategies for page stability
+wait_strategies:
+  network_idle: true
+  animation_complete: true
+  min_load_time: 1500
+  custom_selectors:
+    - "#app-loaded"
+    - "[data-ready='true']"
+
+# Retry configuration
+retry:
+  max_attempts: 3
+  on_errors:
+    - browser_crash
+    - timeout
+    - network_error
+  backoff: exponential
+  backoff_base: 1000
+
+# Observation settings
+observations:
+  require_severity: true
+  require_confidence: true
+  auto_triage:
+    P0_P1: create_bead
+    P2_P3: log_only
+
+# Test data isolation
+test_data:
+  email_pattern: "sarah+{run_id}@screencoach.test"
+  cleanup_strategy:
+    on_success: delete_account
+    on_failure: mark_for_review
+    on_crash: cleanup_job
+  isolation:
+    unique_suffix: true
+
+# Recording configuration
+recording:
+  video: true
+  video_format: webm
+  video_quality: medium
+  trace: true
+  screenshots:
+    on_failure: true
+    on_confusion: true
+    require_review: true
+    key_moments: true
+
+# Timeout in seconds
+timeout: 600
+
+# Model selection (haiku is fast/cheap, sonnet for complex reasoning)
+model: haiku
+
+# Playwright configuration
+playwright:
+  headless: true
+  browser: chromium
+  viewport:
+    width: 1280
+    height: 720
+  slow_mo: 0
+  timeout: 30000
