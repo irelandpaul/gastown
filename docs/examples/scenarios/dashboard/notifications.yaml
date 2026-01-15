@@ -1,0 +1,75 @@
+# AI User Testing Scenario: Notifications
+#
+# This scenario tests the notifications feature on the dashboard,
+# including viewing, managing, and understanding various alert types
+# related to child activity.
+
+scenario: dashboard_notifications
+version: 1
+
+persona: sarah
+
+goal: |
+  As a registered parent, I want to view and manage notifications about
+  my child's screen time activity so that I can stay informed about
+  important events without being overwhelmed.
+
+  I should be able to:
+  - Log in and see notification indicators
+  - View a list of recent notifications
+  - Understand what each notification is about
+  - Mark notifications as read or dismiss them
+  - Access notification settings/preferences
+
+success_criteria:
+  - Notification indicator is visible on dashboard
+  - Notification list opens and displays correctly
+  - Notifications have clear titles and descriptions
+  - Read/dismiss actions work properly
+  - Settings are accessible and understandable
+
+environment:
+  url: http://localhost:5175
+  viewport:
+    width: 1280
+    height: 720
+
+test_data:
+  use_existing_account: true
+  credentials:
+    email: "parent@demo.com"
+    password: "Demo123!"
+  cleanup_strategy:
+    on_success: none
+    on_failure: none
+    on_crash: none
+
+wait_strategies:
+  network_idle: true
+  animation_complete: true
+  min_load_time: 1500
+
+recording:
+  headed: false
+  video: true
+  trace: true
+  screenshots: true
+
+retry:
+  max_attempts: 3
+  on_errors:
+    - browser_crash
+    - timeout
+    - network_error
+  not_on:
+    - test_failure
+    - blocked
+  backoff: exponential
+
+timeout: 3m
+
+tags:
+  - dashboard
+  - notifications
+  - alerts
+  - settings

@@ -1,0 +1,81 @@
+# AI User Testing Scenario: Dashboard Activity Overview
+#
+# This scenario tests the activity overview feature on the dashboard from the
+# perspective of a parent who has already registered and wants to check their
+# child's recent activity at a glance.
+#
+# The AI agent will log in, navigate to the dashboard, and evaluate the
+# clarity and usefulness of the activity overview section.
+
+scenario: dashboard_activity_overview
+version: 1
+
+# Persona defines the AI agent's "user profile" for this test.
+persona: sarah
+
+# Goal is written in user story format
+goal: |
+  As a registered parent, I want to see an overview of my child's recent
+  activity on the dashboard so that I can quickly understand their screen
+  time patterns.
+
+  I should be able to:
+  - Log in with my existing account
+  - See the dashboard immediately after login
+  - View a summary of today's activity
+  - Understand at a glance if activity is normal or concerning
+  - See which apps/sites were used most
+
+success_criteria:
+  - Login completes successfully
+  - Dashboard loads with activity overview visible
+  - Activity summary shows today's data
+  - Data presentation is clear and understandable
+  - Key metrics are prominently displayed
+
+environment:
+  url: http://localhost:5175
+  viewport:
+    width: 1280
+    height: 720
+
+# Pre-existing test account (demo credentials)
+test_data:
+  use_existing_account: true
+  credentials:
+    email: "parent@demo.com"
+    password: "Demo123!"
+  cleanup_strategy:
+    on_success: none
+    on_failure: none
+    on_crash: none
+
+wait_strategies:
+  network_idle: true
+  animation_complete: true
+  min_load_time: 1500
+
+recording:
+  headed: false
+  video: true
+  trace: true
+  screenshots: true
+
+retry:
+  max_attempts: 3
+  on_errors:
+    - browser_crash
+    - timeout
+    - network_error
+  not_on:
+    - test_failure
+    - blocked
+  backoff: exponential
+
+timeout: 3m
+
+tags:
+  - dashboard
+  - monitoring
+  - activity-overview
+  - critical-path

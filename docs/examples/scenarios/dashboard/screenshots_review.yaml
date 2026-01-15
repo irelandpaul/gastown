@@ -1,0 +1,75 @@
+# AI User Testing Scenario: Screenshots Review
+#
+# This scenario tests the screenshots review feature where parents can
+# view periodic screenshots captured during their child's screen time
+# sessions for content monitoring.
+
+scenario: dashboard_screenshots_review
+version: 1
+
+persona: sarah
+
+goal: |
+  As a registered parent, I want to review screenshots captured during
+  my child's screen time sessions so that I can verify they are using
+  devices appropriately and not accessing harmful content.
+
+  I should be able to:
+  - Log in and navigate to the screenshots section
+  - View thumbnails of captured screenshots
+  - Click to enlarge screenshots for detailed viewing
+  - Navigate through screenshots chronologically
+  - Understand when each screenshot was taken
+
+success_criteria:
+  - Screenshots section is accessible from dashboard
+  - Thumbnails load and display correctly
+  - Full-size view works on click
+  - Navigation between screenshots is intuitive
+  - Timestamps are clearly visible
+
+environment:
+  url: http://localhost:5175
+  viewport:
+    width: 1280
+    height: 720
+
+test_data:
+  use_existing_account: true
+  credentials:
+    email: "parent@demo.com"
+    password: "Demo123!"
+  cleanup_strategy:
+    on_success: none
+    on_failure: none
+    on_crash: none
+
+wait_strategies:
+  network_idle: true
+  animation_complete: true
+  min_load_time: 2000
+
+recording:
+  headed: false
+  video: true
+  trace: true
+  screenshots: true
+
+retry:
+  max_attempts: 3
+  on_errors:
+    - browser_crash
+    - timeout
+    - network_error
+  not_on:
+    - test_failure
+    - blocked
+  backoff: exponential
+
+timeout: 4m
+
+tags:
+  - dashboard
+  - monitoring
+  - screenshots
+  - content-review

@@ -1,0 +1,76 @@
+# AI User Testing Scenario: Real-time Updates
+#
+# This scenario tests the real-time update functionality on the dashboard,
+# verifying that live data changes are reflected without requiring
+# manual page refresh.
+
+scenario: dashboard_realtime_updates
+version: 1
+
+persona: sarah
+
+goal: |
+  As a registered parent, I want the dashboard to show real-time updates
+  of my child's activity so that I can monitor what they are doing
+  right now without having to refresh the page.
+
+  I should be able to:
+  - Log in and view the dashboard
+  - See real-time activity indicators
+  - Observe data updating without manual refresh
+  - Understand what is happening in real-time
+  - See clear indication when child is currently active
+
+success_criteria:
+  - Dashboard shows real-time status indicators
+  - Active/inactive status is clearly displayed
+  - Data updates are visible (if child is active)
+  - Real-time indicators are visually distinct
+  - No need for manual refresh to see changes
+
+environment:
+  url: http://localhost:5175
+  viewport:
+    width: 1280
+    height: 720
+
+test_data:
+  use_existing_account: true
+  credentials:
+    email: "parent@demo.com"
+    password: "Demo123!"
+  cleanup_strategy:
+    on_success: none
+    on_failure: none
+    on_crash: none
+
+wait_strategies:
+  network_idle: true
+  animation_complete: true
+  min_load_time: 2000
+
+recording:
+  headed: false
+  video: true
+  trace: true
+  screenshots: true
+
+retry:
+  max_attempts: 3
+  on_errors:
+    - browser_crash
+    - timeout
+    - network_error
+  not_on:
+    - test_failure
+    - blocked
+  backoff: exponential
+
+# Longer timeout to observe real-time behavior
+timeout: 5m
+
+tags:
+  - dashboard
+  - monitoring
+  - realtime
+  - live-updates

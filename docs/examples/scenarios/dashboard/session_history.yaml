@@ -1,0 +1,75 @@
+# AI User Testing Scenario: Session History
+#
+# This scenario tests the session history feature which shows detailed
+# records of past screen time sessions, including apps used, durations,
+# and timestamps.
+
+scenario: dashboard_session_history
+version: 1
+
+persona: sarah
+
+goal: |
+  As a registered parent, I want to view a detailed history of my child's
+  past sessions so that I can understand exactly what they were doing
+  and when.
+
+  I should be able to:
+  - Log in and navigate to session history
+  - See a list of past sessions with dates and times
+  - View details of individual sessions
+  - Filter or sort sessions by date, duration, or app
+  - Understand the purpose and content of each session
+
+success_criteria:
+  - Session history page loads successfully
+  - Sessions are listed in a clear, organized manner
+  - Session details are accessible
+  - Filtering/sorting options work correctly
+  - Time and duration information is easy to read
+
+environment:
+  url: http://localhost:5175
+  viewport:
+    width: 1280
+    height: 720
+
+test_data:
+  use_existing_account: true
+  credentials:
+    email: "parent@demo.com"
+    password: "Demo123!"
+  cleanup_strategy:
+    on_success: none
+    on_failure: none
+    on_crash: none
+
+wait_strategies:
+  network_idle: true
+  animation_complete: true
+  min_load_time: 1500
+
+recording:
+  headed: false
+  video: true
+  trace: true
+  screenshots: true
+
+retry:
+  max_attempts: 3
+  on_errors:
+    - browser_crash
+    - timeout
+    - network_error
+  not_on:
+    - test_failure
+    - blocked
+  backoff: exponential
+
+timeout: 4m
+
+tags:
+  - dashboard
+  - monitoring
+  - session-history
+  - details
