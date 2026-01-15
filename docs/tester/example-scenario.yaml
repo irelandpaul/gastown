@@ -6,32 +6,26 @@
 
 scenario: sarah_registers
 version: 1
-description: "First-time parent registration"
 tags:
   - registration
   - critical-path
   - p0
 
-# User Story Format (Recommended)
-# Defines the persona inline with their goal
-user_story:
-  name: new_parent_registration
-  persona: Sarah, first-time parent, not tech-savvy, 2 kids ages 8 and 11
-  goal: Register for ScreenCoach and set up profiles for both children
-  context: |
-    Found ScreenCoach through school newsletter.
-    Wants to limit gaming during homework hours.
-    Has never used parental control software before.
-    Uses an iPhone but testing on web today.
+# Persona describes who is executing this scenario
+persona: Sarah, first-time parent, not tech-savvy, 2 kids ages 8 and 11
 
-# Target Application
-target:
-  app: parent-portal
-  environment: staging
-  base_url: https://staging.screencoach.example.com
+# Goal describes what the persona should accomplish
+# Include context and relevant background information
+goal: |
+  Register for ScreenCoach and set up profiles for both children.
 
-# High-level steps (agent interprets these)
-steps:
+  Context:
+  - Found ScreenCoach through school newsletter
+  - Wants to limit gaming during homework hours
+  - Has never used parental control software before
+  - Uses an iPhone but testing on web today
+
+  Steps to accomplish:
   - Navigate to homepage
   - Find and click registration
   - Complete signup form with email and password
@@ -47,6 +41,13 @@ success_criteria:
   - Dashboard visible with children listed
   - No P0 or P1 blocking issues encountered
 
+# Target Application
+environment:
+  url: https://staging.screencoach.example.com
+  viewport:
+    width: 1280
+    height: 720
+
 # Wait strategies for page stability
 wait_strategies:
   network_idle: true
@@ -54,7 +55,7 @@ wait_strategies:
   min_load_time: 1500
   custom_selectors:
     - "#app-loaded"
-    - "[data-ready='true']"
+    - "[data-ready=true]"
 
 # Retry configuration
 retry:
@@ -63,20 +64,15 @@ retry:
     - browser_crash
     - timeout
     - network_error
+  not_on:
+    - test_failure
+    - blocked
   backoff: exponential
-  backoff_base: 1000
-
-# Observation settings
-observations:
-  require_severity: true
-  require_confidence: true
-  auto_triage:
-    P0_P1: create_bead
-    P2_P3: log_only
 
 # Test data isolation
 test_data:
-  email_pattern: "sarah+{run_id}@screencoach.test"
+  email_pattern: "sarah+{scenario}+{run_id}@screencoach.test"
+  email_inbox: skip_verification
   cleanup_strategy:
     on_success: delete_account
     on_failure: mark_for_review
@@ -86,28 +82,11 @@ test_data:
 
 # Recording configuration
 recording:
+  headed: false
+  headed_verification: weekly
   video: true
-  video_format: webm
-  video_quality: medium
   trace: true
-  screenshots:
-    on_failure: true
-    on_confusion: true
-    require_review: true
-    key_moments: true
+  screenshots: true
 
-# Timeout in seconds
-timeout: 600
-
-# Model selection (haiku is fast/cheap, sonnet for complex reasoning)
-model: haiku
-
-# Playwright configuration
-playwright:
-  headless: true
-  browser: chromium
-  viewport:
-    width: 1280
-    height: 720
-  slow_mo: 0
-  timeout: 30000
+# Timeout (duration format: 5m, 10s, 1h30m, etc.)
+timeout: 10m
