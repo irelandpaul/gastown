@@ -135,20 +135,7 @@ func (m *Manager) CreateSession(title, rawIdea string) (*PlanningSession, error)
 		return nil, err
 	}
 
-	// Generate session ID (will be updated when bead is created)
-	sessionID := fmt.Sprintf("gt-plan-%s", generateShortID())
-
-	session := &PlanningSession{
-		ID:        sessionID,
-		Title:     title,
-		Status:    StatusQuestioning,
-		RigName:   m.rig.Name,
-		CreatedAt: time.Now(),
-		UpdatedAt: time.Now(),
-		RawIdea:   rawIdea,
-	}
-
-	// Create planning bead
+	// Create planning bead first to get the auto-generated ID
 	beadOpts := beads.CreateOptions{
 		Title:       fmt.Sprintf("Planning: %s", title),
 		Type:        "planning", // Will be converted to gt:planning label
@@ -156,12 +143,21 @@ func (m *Manager) CreateSession(title, rawIdea string) (*PlanningSession, error)
 		Description: rawIdea,
 	}
 
-	bead, err := m.beads.CreateWithID(sessionID, beadOpts)
+	bead, err := m.beads.Create(beadOpts)
 	if err != nil {
 		return nil, fmt.Errorf("creating planning bead: %w", err)
 	}
 
-	session.ID = bead.ID
+	// Use the bead ID as the session ID
+	session := &PlanningSession{
+		ID:        bead.ID,
+		Title:     title,
+		Status:    StatusQuestioning,
+		RigName:   m.rig.Name,
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
+		RawIdea:   rawIdea,
+	}
 
 	// Create session directory structure
 	sessionDir := m.sessionDir(session.ID)
