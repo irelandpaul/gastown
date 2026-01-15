@@ -104,37 +104,31 @@ type TestScenario struct {
 
 // TestRunResult contains the result of a test run
 type TestRunResult struct {
-	Scenario      string           `json:"scenario"`
-	ScenarioFile  string           `json:"scenario_file"`
-	StartTime     time.Time        `json:"start_time"`
-	EndTime       time.Time        `json:"end_time"`
-	Duration      string           `json:"duration"`
-	Status        string           `json:"status"` // "pass", "fail", "error"
-	ExitCode      int              `json:"exit_code"`
-	Observations  []TestObservation `json:"observations"`
-	CriteriaMet   int              `json:"criteria_met"`
-	CriteriaTotal int              `json:"criteria_total"`
-	RetryAttempts int              `json:"retry_attempts"`
-	Artifacts     TestArtifacts    `json:"artifacts"`
-	Error         string           `json:"error,omitempty"`
-}
+	Scenario      string        `json:"scenario"`
+	ScenarioFile  string        `json:"scenario_file"`
+	StartTime     time.Time     `json:"start_time"`
+	EndTime       time.Time     `json:"end_time"`
+	Duration      string        `json:"duration"`
+	Status        string        `json:"status"` // "pass", "fail", "error"
+	ExitCode      int           `json:"exit_code"`
+	Observations  []Observation `json:"observations"`
+	CriteriaMet   int           `json:"criteria_met"`
+	CriteriaTotal int           `json:"criteria_total"`
+	RetryAttempts int           `json:"retry_attempts"`
+	Artifacts     TestArtifacts `json:"artifacts"`
+	Error         string        `json:"error,omitempty"`
 
-// TestObservation represents a UX observation made during testing
-type TestObservation struct {
-	Timestamp  string `json:"timestamp"`
-	Severity   string `json:"severity"` // P0-P3
-	Confidence string `json:"confidence"` // high, medium, low
-	Type       string `json:"type"` // confusion, friction, blocked, bug
-	Message    string `json:"message"`
-	Screenshot string `json:"screenshot,omitempty"`
+	// Full observation result for detailed output
+	ObservationResult *ObservationResult `json:"-"`
 }
 
 // TestArtifacts contains paths to test artifacts
 type TestArtifacts struct {
-	Video     string `json:"video,omitempty"`
-	Trace     string `json:"trace,omitempty"`
-	Summary   string `json:"summary,omitempty"`
-	OutputDir string `json:"output_dir"`
+	Video        string `json:"video,omitempty"`
+	Trace        string `json:"trace,omitempty"`
+	Summary      string `json:"summary,omitempty"`
+	Observations string `json:"observations,omitempty"`
+	OutputDir    string `json:"output_dir"`
 }
 
 // InfrastructureError represents an error that can be retried
@@ -303,11 +297,11 @@ func runTesterRun(cmd *cobra.Command, args []string) error {
 	p3Count := 0
 	for _, obs := range result.Observations {
 		switch obs.Severity {
-		case "P0", "P1":
+		case SeverityP0, SeverityP1:
 			p0p1Count++
-		case "P2":
+		case SeverityP2:
 			p2Count++
-		case "P3":
+		case SeverityP3:
 			p3Count++
 		}
 	}
@@ -426,47 +420,127 @@ func runPreflightQuick() (bool, error) {
 func executeTestScenario(scenario *TestScenario, result *TestRunResult, attempt int, timeout int, model string) error {
 	fmt.Printf("Agent navigating... (attempt %d)\n", attempt)
 
+	// Initialize observation result
+	obsResult := NewObservationResult(scenario.Scenario, scenario.Persona.Name)
+	obsResult.Model = model
+	obsResult.RunID = fmt.Sprintf("run-%03d", attempt)
+	result.ObservationResult = obsResult
+
 	// For now, this is a placeholder for the actual test execution
 	// In a full implementation, this would:
 	// 1. Spawn a Task agent with the tester CLAUDE.md context
 	// 2. Provide the scenario details and persona
 	// 3. Let the agent navigate using Playwright MCP
 	// 4. Collect observations and artifacts
+	// 5. Parse agent output for observations using ParseObservationFromAgent
 
 	// Simulate successful execution for the scaffold
 	result.Status = "pass"
 	result.CriteriaMet = result.CriteriaTotal
 
-	// Create placeholder artifacts
+	// Mark observation result as complete
+	obsResult.Complete()
+	obsResult.SuccessCriteriaMet = scenario.SuccessCriteria
+	obsResult.OverallExperience = "Test completed successfully (scaffold implementation)"
+	obsResult.RetryCount = attempt - 1
+
+	// Copy observations to result
+	result.Observations = obsResult.Observations
+
+	// Create artifact paths
 	result.Artifacts.Video = filepath.Join(result.Artifacts.OutputDir, "video.webm")
 	result.Artifacts.Trace = filepath.Join(result.Artifacts.OutputDir, "trace.zip")
 	result.Artifacts.Summary = filepath.Join(result.Artifacts.OutputDir, "summary.md")
+	result.Artifacts.Observations = filepath.Join(result.Artifacts.OutputDir, "observations.json")
 
-	// Write a placeholder summary
-	summaryContent := fmt.Sprintf(`# Test Run Summary
+	// Write observations.json
+	if err := obsResult.WriteToFile(result.Artifacts.OutputDir); err != nil {
+		fmt.Printf("  %s Could not write observations: %v\n", ui.RenderWarnIcon(), err)
+	}
 
-**Scenario**: %s
-**Persona**: %s
-**App**: %s (%s)
-**Model**: %s
-**Status**: %s
-
-## Observations
-
-_No observations recorded (scaffold implementation)_
-
-## Success Criteria
-
-All %d criteria met.
-`, scenario.Scenario, scenario.Persona.Name, scenario.Target.App,
-		scenario.Target.Environment, model, result.Status, result.CriteriaTotal)
-
+	// Write summary markdown
+	summaryContent := generateSummaryMarkdown(scenario, obsResult, model)
 	if err := os.WriteFile(result.Artifacts.Summary, []byte(summaryContent), 0644); err != nil {
-		// Non-fatal - just log
 		fmt.Printf("  %s Could not write summary: %v\n", ui.RenderWarnIcon(), err)
 	}
 
 	return nil
+}
+
+// generateSummaryMarkdown creates a human-readable summary of the test run
+func generateSummaryMarkdown(scenario *TestScenario, obsResult *ObservationResult, model string) string {
+	var sb strings.Builder
+
+	sb.WriteString("# Test Run Summary\n\n")
+	sb.WriteString(fmt.Sprintf("**Scenario**: %s\n", scenario.Scenario))
+	sb.WriteString(fmt.Sprintf("**Persona**: %s\n", scenario.Persona.Name))
+	sb.WriteString(fmt.Sprintf("**App**: %s (%s)\n", scenario.Target.App, scenario.Target.Environment))
+	sb.WriteString(fmt.Sprintf("**Model**: %s\n", model))
+	sb.WriteString(fmt.Sprintf("**Duration**: %d seconds\n", obsResult.DurationSeconds))
+	sb.WriteString(fmt.Sprintf("**Completed**: %v\n\n", obsResult.Completed))
+
+	// Observations section
+	sb.WriteString("## Observations\n\n")
+	if len(obsResult.Observations) == 0 {
+		sb.WriteString("_No observations recorded._\n\n")
+	} else {
+		counts := obsResult.CountBySeverity()
+		sb.WriteString(fmt.Sprintf("Total: %d observations\n", len(obsResult.Observations)))
+		sb.WriteString(fmt.Sprintf("- P0 (Blocking): %d\n", counts[SeverityP0]))
+		sb.WriteString(fmt.Sprintf("- P1 (Significant): %d\n", counts[SeverityP1]))
+		sb.WriteString(fmt.Sprintf("- P2 (Minor): %d\n", counts[SeverityP2]))
+		sb.WriteString(fmt.Sprintf("- P3 (Nitpick): %d\n\n", counts[SeverityP3]))
+
+		for i, obs := range obsResult.Observations {
+			sb.WriteString(fmt.Sprintf("### %d. [%s] %s\n\n", i+1, obs.Severity, obs.Type))
+			sb.WriteString(fmt.Sprintf("- **Confidence**: %s\n", obs.Confidence))
+			if obs.Timestamp != "" {
+				sb.WriteString(fmt.Sprintf("- **Timestamp**: %s\n", obs.Timestamp))
+			}
+			if obs.Location != "" {
+				sb.WriteString(fmt.Sprintf("- **Location**: %s\n", obs.Location))
+			}
+			sb.WriteString(fmt.Sprintf("- **Description**: %s\n", obs.Description))
+			if obs.Screenshot != "" {
+				sb.WriteString(fmt.Sprintf("- **Screenshot**: %s\n", obs.Screenshot))
+			}
+			sb.WriteString("\n")
+		}
+	}
+
+	// Success Criteria section
+	sb.WriteString("## Success Criteria\n\n")
+	if len(obsResult.SuccessCriteriaMet) > 0 {
+		sb.WriteString("**Met:**\n")
+		for _, c := range obsResult.SuccessCriteriaMet {
+			sb.WriteString(fmt.Sprintf("- ✓ %s\n", c))
+		}
+	}
+	if len(obsResult.SuccessCriteriaFailed) > 0 {
+		sb.WriteString("\n**Failed:**\n")
+		for _, c := range obsResult.SuccessCriteriaFailed {
+			sb.WriteString(fmt.Sprintf("- ✗ %s\n", c))
+		}
+	}
+	sb.WriteString("\n")
+
+	// Overall Experience
+	if obsResult.OverallExperience != "" {
+		sb.WriteString("## Overall Experience\n\n")
+		sb.WriteString(obsResult.OverallExperience)
+		sb.WriteString("\n\n")
+	}
+
+	// Infrastructure Errors
+	if len(obsResult.InfrastructureErrors) > 0 {
+		sb.WriteString("## Infrastructure Errors\n\n")
+		for _, err := range obsResult.InfrastructureErrors {
+			sb.WriteString(fmt.Sprintf("- [%s] %s: %s\n", err.Timestamp.Format("15:04:05"), err.Type, err.Message))
+		}
+		sb.WriteString("\n")
+	}
+
+	return sb.String()
 }
 
 // calculateBackoff calculates the backoff duration for retry
