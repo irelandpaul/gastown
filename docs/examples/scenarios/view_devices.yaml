@@ -1,0 +1,76 @@
+# AI User Testing Scenario: View Devices
+#
+# This scenario tests viewing the devices page to see all devices
+# associated with the family account.
+
+scenario: view_devices
+version: 1
+
+persona: sarah
+
+goal: |
+  As a parent, I want to view all devices in my family account
+  so that I can understand what devices my children are using.
+
+  Starting from logged in state, I should:
+  - Navigate to the Devices page
+  - See a list of all connected devices
+  - Understand which child is associated with each device
+  - See the device status (online/offline)
+  - Be able to click into device details
+
+success_criteria:
+  - Devices link is visible in navigation
+  - Devices page loads with clear layout
+  - Device cards show device name/type
+  - Device cards show associated child
+  - Device status is clearly indicated
+  - Can click on a device to see details
+  - Empty state is clear if no devices exist
+
+environment:
+  url: http://localhost:5175/login
+  viewport:
+    width: 1280
+    height: 720
+
+test_data:
+  credentials:
+    email: "parent@demo.com"
+    password: "Demo123!"
+
+  email_inbox: skip_verification
+
+  cleanup_strategy:
+    on_success: keep
+    on_failure: keep
+    on_crash: keep
+
+wait_strategies:
+  network_idle: true
+  animation_complete: true
+  min_load_time: 1000
+
+recording:
+  headed: false
+  video: true
+  trace: true
+  screenshots: true
+
+retry:
+  max_attempts: 3
+  on_errors:
+    - browser_crash
+    - timeout
+    - network_error
+  not_on:
+    - test_failure
+    - blocked
+  backoff: exponential
+
+timeout: 3m
+
+tags:
+  - devices
+  - view
+  - smoke-test

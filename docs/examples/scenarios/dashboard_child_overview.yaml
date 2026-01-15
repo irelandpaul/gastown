@@ -1,0 +1,81 @@
+# AI User Testing Scenario: Dashboard Child Overview
+#
+# This scenario tests the main dashboard view that shows an overview
+# of all children and their current screen time status.
+
+scenario: dashboard_child_overview
+version: 1
+
+persona: sarah
+
+goal: |
+  As a parent, I want to see an overview of all my children's
+  screen time on the dashboard so I can quickly check their status.
+
+  Starting from the login page, I should:
+  - Log in with my credentials
+  - See the main dashboard load
+  - View cards for each child (Emma, Liam)
+  - Understand each child's current status
+  - See any pending actions or alerts
+  - Be able to navigate to detailed views
+
+success_criteria:
+  - Dashboard loads after successful login
+  - Child cards are displayed prominently
+  - Each child card shows their name
+  - Screen time status is visible per child
+  - Cards are clickable or have clear action buttons
+  - Any alerts or pending items are highlighted
+  - Navigation to other sections is clear
+
+environment:
+  url: http://localhost:5175/login
+  viewport:
+    width: 1280
+    height: 720
+
+test_data:
+  credentials:
+    email: "parent@demo.com"
+    password: "Demo123!"
+
+  email_inbox: skip_verification
+
+  cleanup_strategy:
+    on_success: keep
+    on_failure: keep
+    on_crash: keep
+
+wait_strategies:
+  network_idle: true
+  animation_complete: true
+  custom_selectors:
+    - "[data-testid='dashboard']"
+    - ".child-card"
+  min_load_time: 1500
+
+recording:
+  headed: false
+  video: true
+  trace: true
+  screenshots: true
+
+retry:
+  max_attempts: 3
+  on_errors:
+    - browser_crash
+    - timeout
+    - network_error
+  not_on:
+    - test_failure
+    - blocked
+  backoff: exponential
+
+timeout: 3m
+
+tags:
+  - dashboard
+  - children
+  - overview
+  - smoke-test

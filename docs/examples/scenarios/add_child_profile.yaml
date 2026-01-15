@@ -1,0 +1,95 @@
+# AI User Testing Scenario: Add Child Profile
+#
+# This scenario tests adding a new child to the family account.
+# Tests the full flow from clicking Add Child to seeing the new
+# child appear in the list.
+
+scenario: add_child_profile
+version: 1
+
+persona: sarah
+
+goal: |
+  As a parent, I want to add a new child to my family account so that
+  I can start monitoring their screen time.
+
+  Starting from logged in state on the dashboard, I should:
+  - Navigate to the Family page
+  - Click "Add Child" button
+  - Fill in the child's name (use "TestChild")
+  - Set the child's age (use 8)
+  - Optionally select gender
+  - Submit the form
+  - See the new child appear in the children list
+
+success_criteria:
+  - Add Child button is visible and clickable
+  - Add Child form appears with clear instructions
+  - Name field accepts input and is clearly labeled
+  - Age field accepts numeric input (1-25 range)
+  - Gender field is optional with clear options
+  - Submit button is clearly labeled
+  - Form validates required fields (name)
+  - Success state is clear (form closes, child appears)
+  - New child appears in the children list immediately
+  - Can see the Manage button for the new child
+
+environment:
+  url: http://localhost:5175/login
+  viewport:
+    width: 1280
+    height: 720
+
+test_data:
+  credentials:
+    email: "parent@demo.com"
+    password: "Demo123!"
+
+  # Test data for the new child
+  new_child:
+    name: "TestChild"
+    age: 8
+    gender: "PREFER_NOT_TO_SAY"
+
+  email_inbox: skip_verification
+
+  cleanup_strategy:
+    on_success: mark_for_review  # Keep for manual cleanup of test child
+    on_failure: mark_for_review
+    on_crash: mark_for_review
+
+  isolation:
+    unique_suffix: true
+
+wait_strategies:
+  network_idle: true
+  animation_complete: true
+  custom_selectors:
+    - "form"
+    - "[type='submit']"
+  min_load_time: 1000
+
+recording:
+  headed: false
+  video: true
+  trace: true
+  screenshots: true
+
+retry:
+  max_attempts: 3
+  on_errors:
+    - browser_crash
+    - timeout
+    - network_error
+  not_on:
+    - test_failure
+    - blocked
+  backoff: exponential
+
+timeout: 5m
+
+tags:
+  - family
+  - child
+  - add
+  - critical-path

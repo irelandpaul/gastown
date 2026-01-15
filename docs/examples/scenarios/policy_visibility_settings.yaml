@@ -1,0 +1,82 @@
+# AI User Testing Scenario: Policy Visibility Settings
+#
+# This scenario tests configuring what policies children can see
+# on their devices. Parents can choose to show/hide policy details.
+
+scenario: policy_visibility_settings
+version: 1
+
+persona: sarah
+
+goal: |
+  As a parent, I want to configure what policies my children can see
+  on their devices, so that I can control their awareness of monitoring.
+
+  Starting from the Family page, I should:
+  - Find the Policy Visibility section
+  - Understand the current settings
+  - Toggle "Show policies to children" option
+  - Toggle "Hide advanced policies" option
+  - See confirmation that settings are saved
+  - Understand the impact of each setting
+
+success_criteria:
+  - Policy Visibility section is visible on Family page
+  - Section has clear title and description
+  - Show policies to children checkbox is present
+  - Hide advanced policies checkbox is present
+  - Each option has helpful description text
+  - Toggling a setting shows immediate feedback
+  - Success message appears when settings save
+  - Status indicator shows current visibility state
+  - Settings persist after page refresh
+
+environment:
+  url: http://localhost:5175/login
+  viewport:
+    width: 1280
+    height: 720
+
+test_data:
+  credentials:
+    email: "parent@demo.com"
+    password: "Demo123!"
+
+  email_inbox: skip_verification
+
+  cleanup_strategy:
+    on_success: keep  # Settings changes are reversible
+    on_failure: mark_for_review
+    on_crash: mark_for_review
+
+wait_strategies:
+  network_idle: true
+  animation_complete: true
+  custom_selectors:
+    - "[type='checkbox']"
+  min_load_time: 1000
+
+recording:
+  headed: false
+  video: true
+  trace: true
+  screenshots: true
+
+retry:
+  max_attempts: 3
+  on_errors:
+    - browser_crash
+    - timeout
+    - network_error
+  not_on:
+    - test_failure
+    - blocked
+  backoff: exponential
+
+timeout: 3m
+
+tags:
+  - family
+  - settings
+  - policy
+  - privacy

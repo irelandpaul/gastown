@@ -1,0 +1,81 @@
+# AI User Testing Scenario: View Family Members
+#
+# This scenario tests viewing the family members page to see existing
+# parents and children profiles. The demo account has existing children
+# (Emma, Liam) that should be visible.
+
+scenario: view_family_members
+version: 1
+
+persona: sarah
+
+goal: |
+  As a parent who has already set up my family, I want to view my family
+  members page to see all parents and children in my account.
+
+  Starting from the login page, I should:
+  - Log in with my credentials (parent@demo.com / Demo123!)
+  - Navigate to the Family page
+  - See the list of parents with their roles
+  - See the list of children (Emma and Liam should be visible)
+  - Understand the family structure at a glance
+
+success_criteria:
+  - Can log in successfully with demo credentials
+  - Can find and click on Family link in navigation
+  - Family page loads and shows family name
+  - Parents section displays parent accounts with roles
+  - Children section displays existing children (Emma, Liam)
+  - Each child shows their name and a manage option
+  - Page layout is clear and organized
+
+environment:
+  url: http://localhost:5175/login
+  viewport:
+    width: 1280
+    height: 720
+
+test_data:
+  # Use the demo account credentials
+  credentials:
+    email: "parent@demo.com"
+    password: "Demo123!"
+
+  email_inbox: skip_verification
+
+  cleanup_strategy:
+    on_success: keep
+    on_failure: keep
+    on_crash: keep
+
+wait_strategies:
+  network_idle: true
+  animation_complete: true
+  custom_selectors:
+    - "[data-testid='family-page']"
+    - ".rounded-lg.border"
+  min_load_time: 1000
+
+recording:
+  headed: false
+  video: true
+  trace: true
+  screenshots: true
+
+retry:
+  max_attempts: 3
+  on_errors:
+    - browser_crash
+    - timeout
+    - network_error
+  not_on:
+    - test_failure
+    - blocked
+  backoff: exponential
+
+timeout: 3m
+
+tags:
+  - family
+  - view
+  - smoke-test
