@@ -210,11 +210,73 @@ func printBatchResult(result *batch.BatchResult) {
 		}
 	}
 
+	// Print comparison results if available
+	if result.Comparison != nil {
+		printComparison(result.Comparison)
+	}
+
 	// Print output location
 	if result.ConvoyID != "" {
 		fmt.Printf("\nConvoy: %s\n", result.ConvoyID)
 	}
 	fmt.Printf("Results: %s\n", result.OutputDir)
+}
+
+// printComparison prints the regression comparison results.
+func printComparison(c *batch.Comparison) {
+	fmt.Println()
+	fmt.Printf("Comparison (vs %s):\n", c.BaselineID)
+
+	// Summary line with regression score
+	if c.RegressionScore > 0 {
+		fmt.Printf("  Score: +%d (improvement)\n", c.RegressionScore)
+	} else if c.RegressionScore < 0 {
+		fmt.Printf("  Score: %d (regression)\n", c.RegressionScore)
+	} else {
+		fmt.Printf("  Score: 0 (no change)\n")
+	}
+
+	// Fixed issues
+	if len(c.Fixed) > 0 {
+		fmt.Printf("  Fixed (%d):\n", len(c.Fixed))
+		for _, item := range c.Fixed {
+			fmt.Printf("    ✓ %s - %s\n", item.Scenario, item.Description)
+		}
+	}
+
+	// New issues (regressions)
+	if len(c.NewIssues) > 0 {
+		fmt.Printf("  New Issues (%d):\n", len(c.NewIssues))
+		for _, item := range c.NewIssues {
+			severityIndicator := ""
+			switch item.Severity {
+			case "P0":
+				severityIndicator = "[CRITICAL] "
+			case "P1":
+				severityIndicator = "[HIGH] "
+			case "P2":
+				severityIndicator = "[MEDIUM] "
+			}
+			fmt.Printf("    ✗ %s%s - %s\n", severityIndicator, item.Scenario, item.Description)
+		}
+	}
+
+	// Recurring issues
+	if len(c.Recurring) > 0 {
+		fmt.Printf("  Recurring (%d):\n", len(c.Recurring))
+		for _, item := range c.Recurring {
+			runInfo := ""
+			if item.RunCount > 0 {
+				runInfo = fmt.Sprintf(" (run %d)", item.RunCount)
+			}
+			fmt.Printf("    ↺ %s - %s%s\n", item.Scenario, item.Description, runInfo)
+		}
+	}
+
+	// No changes
+	if len(c.Fixed) == 0 && len(c.NewIssues) == 0 && len(c.Recurring) == 0 {
+		fmt.Println("  No significant changes detected")
+	}
 }
 
 func printScenarioResult(r batch.ScenarioResult) {

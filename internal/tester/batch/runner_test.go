@@ -291,3 +291,188 @@ func TestHasAnyTag(t *testing.T) {
 		}
 	}
 }
+
+func TestCompare(t *testing.T) {
+	tmpDir := t.TempDir()
+	config := DefaultConfig()
+	config.OutputDir = tmpDir
+
+	runner, _ := NewRunner(config)
+
+	// Create baseline result with mixed outcomes
+	baseline := &BatchResult{
+		ID: "baseline123",
+		Results: []ScenarioResult{
+			{Scenario: "login", Status: StatusPassed, Observations: map[string]int{"P2": 1}},
+			{Scenario: "checkout", Status: StatusFailed, Error: "timeout"},
+			{Scenario: "profile", Status: StatusFailed, Error: "element not found"},
+			{Scenario: "search", Status: StatusPassed},
+		},
+	}
+
+	// Create current result - checkout fixed, search regressed, profile still failing
+	current := &BatchResult{
+		ID: "current456",
+		Results: []ScenarioResult{
+			{Scenario: "login", Status: StatusPassed, Observations: map[string]int{"P2": 1}},
+			{Scenario: "checkout", Status: StatusPassed}, // Fixed!
+			{Scenario: "profile", Status: StatusFailed, Error: "element not found"}, // Still failing
+			{Scenario: "search", Status: StatusFailed, Error: "regression"}, // Regressed!
+		},
+	}
+
+	comparison := runner.Compare(current, baseline)
+
+	// Verify baseline ID
+	if comparison.BaselineID != "baseline123" {
+		t.Errorf("expected BaselineID=baseline123, got %s", comparison.BaselineID)
+	}
+
+	// Verify fixed issues (checkout was fixed)
+	if len(comparison.Fixed) != 1 {
+		t.Errorf("expected 1 fixed, got %d", len(comparison.Fixed))
+	} else if comparison.Fixed[0].Scenario != "checkout" {
+		t.Errorf("expected checkout to be fixed, got %s", comparison.Fixed[0].Scenario)
+	}
+
+	// Verify new issues (search regressed)
+	if len(comparison.NewIssues) != 1 {
+		t.Errorf("expected 1 new issue, got %d", len(comparison.NewIssues))
+	} else if comparison.NewIssues[0].Scenario != "search" {
+		t.Errorf("expected search to be a new issue, got %s", comparison.NewIssues[0].Scenario)
+	}
+
+	// Verify recurring issues (profile still failing)
+	if len(comparison.Recurring) != 1 {
+		t.Errorf("expected 1 recurring, got %d", len(comparison.Recurring))
+	} else if comparison.Recurring[0].Scenario != "profile" {
+		t.Errorf("expected profile to be recurring, got %s", comparison.Recurring[0].Scenario)
+	}
+
+	// Regression score: 1 fixed - 1 new = 0
+	if comparison.RegressionScore != 0 {
+		t.Errorf("expected RegressionScore=0, got %d", comparison.RegressionScore)
+	}
+}
+
+func TestCompareAllFixed(t *testing.T) {
+	tmpDir := t.TempDir()
+	config := DefaultConfig()
+	config.OutputDir = tmpDir
+
+	runner, _ := NewRunner(config)
+
+	baseline := &BatchResult{
+		ID: "baseline",
+		Results: []ScenarioResult{
+			{Scenario: "test1", Status: StatusFailed, Error: "bug"},
+			{Scenario: "test2", Status: StatusFailed, Error: "bug"},
+		},
+	}
+
+	current := &BatchResult{
+		ID: "current",
+		Results: []ScenarioResult{
+			{Scenario: "test1", Status: StatusPassed},
+			{Scenario: "test2", Status: StatusPassed},
+		},
+	}
+
+	comparison := runner.Compare(current, baseline)
+
+	if len(comparison.Fixed) != 2 {
+		t.Errorf("expected 2 fixed, got %d", len(comparison.Fixed))
+	}
+
+	if len(comparison.NewIssues) != 0 {
+		t.Errorf("expected 0 new issues, got %d", len(comparison.NewIssues))
+	}
+
+	if comparison.RegressionScore != 2 {
+		t.Errorf("expected RegressionScore=2 (improvement), got %d", comparison.RegressionScore)
+	}
+}
+
+func TestCompareObservationChanges(t *testing.T) {
+	tmpDir := t.TempDir()
+	config := DefaultConfig()
+	config.OutputDir = tmpDir
+
+	runner, _ := NewRunner(config)
+
+	baseline := &BatchResult{
+		ID: "baseline",
+		Results: []ScenarioResult{
+			{Scenario: "test1", Status: StatusPassed, Observations: map[string]int{"P2": 3}},
+		},
+	}
+
+	// More observations = regression
+	current := &BatchResult{
+		ID: "current",
+		Results: []ScenarioResult{
+			{Scenario: "test1", Status: StatusPassed, Observations: map[string]int{"P2": 5}},
+		},
+	}
+
+	comparison := runner.Compare(current, baseline)
+
+	if len(comparison.NewIssues) != 1 {
+		t.Errorf("expected 1 new issue for increased observations, got %d", len(comparison.NewIssues))
+	}
+
+	// Fewer observations = improvement
+	currentBetter := &BatchResult{
+		ID: "current",
+		Results: []ScenarioResult{
+			{Scenario: "test1", Status: StatusPassed, Observations: map[string]int{"P2": 1}},
+		},
+	}
+
+	comparison2 := runner.Compare(currentBetter, baseline)
+
+	if len(comparison2.Fixed) != 1 {
+		t.Errorf("expected 1 fixed for reduced observations, got %d", len(comparison2.Fixed))
+	}
+}
+
+func TestGetHighestSeverity(t *testing.T) {
+	tests := []struct {
+		observations map[string]int
+		expected     string
+	}{
+		{map[string]int{"P0": 1, "P2": 2}, "P0"},
+		{map[string]int{"P1": 1, "P3": 5}, "P1"},
+		{map[string]int{"P3": 3}, "P3"},
+		{map[string]int{}, "P3"}, // Default to lowest
+		{nil, "P3"},
+	}
+
+	for _, tt := range tests {
+		result := getHighestSeverity(tt.observations)
+		if result != tt.expected {
+			t.Errorf("getHighestSeverity(%v) = %s, expected %s",
+				tt.observations, result, tt.expected)
+		}
+	}
+}
+
+func TestCountObservations(t *testing.T) {
+	tests := []struct {
+		observations map[string]int
+		expected     int
+	}{
+		{map[string]int{"P0": 1, "P2": 2, "P3": 3}, 6},
+		{map[string]int{"P1": 5}, 5},
+		{map[string]int{}, 0},
+		{nil, 0},
+	}
+
+	for _, tt := range tests {
+		result := countObservations(tt.observations)
+		if result != tt.expected {
+			t.Errorf("countObservations(%v) = %d, expected %d",
+				tt.observations, result, tt.expected)
+		}
+	}
+}

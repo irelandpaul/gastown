@@ -160,6 +160,9 @@ type BatchResult struct {
 
 	// OutputDir is where results are stored.
 	OutputDir string `json:"output_dir"`
+
+	// Comparison holds the comparison to a baseline batch (if --compare-to was used).
+	Comparison *Comparison `json:"comparison,omitempty"`
 }
 
 // BatchSummary holds aggregated statistics for a batch run.

@@ -144,6 +144,17 @@ func (r *Runner) Run(ctx context.Context) (*BatchResult, error) {
 		return result, fmt.Errorf("failed to save manifest: %w", err)
 	}
 
+	// Compare to baseline if requested
+	if r.config.CompareTo != "" {
+		baseline, err := r.LoadBaseline(r.config.CompareTo)
+		if err != nil {
+			// Log warning but don't fail the entire run
+			fmt.Printf("Warning: failed to load baseline %s: %v\n", r.config.CompareTo, err)
+		} else {
+			result.Comparison = r.Compare(result, baseline)
+		}
+	}
+
 	return result, nil
 }
 
@@ -662,4 +673,181 @@ func (s *QuarantineStore) save() error {
 	}
 
 	return os.WriteFile(s.path, data, 0644)
+}
+
+// LoadBaseline loads a previous batch result to use as a comparison baseline.
+// The batchID can be a full batch ID (e.g., "a1b2c3d4") or a path to the manifest.
+func (r *Runner) LoadBaseline(batchID string) (*BatchResult, error) {
+	// First, try to interpret as a direct path to manifest
+	if strings.HasSuffix(batchID, "manifest.json") {
+		return loadManifestFile(batchID)
+	}
+
+	// Search for the batch in the output directory
+	// Batch manifests are stored at: <output>/<date>/batch-<id>/manifest.json
+	pattern := filepath.Join(r.baseDir, "*", fmt.Sprintf("batch-%s", batchID), "manifest.json")
+	matches, err := filepath.Glob(pattern)
+	if err != nil {
+		return nil, fmt.Errorf("failed to search for baseline: %w", err)
+	}
+
+	if len(matches) == 0 {
+		// Try without the batch- prefix (in case user passed full path component)
+		pattern = filepath.Join(r.baseDir, "*", batchID, "manifest.json")
+		matches, err = filepath.Glob(pattern)
+		if err != nil {
+			return nil, fmt.Errorf("failed to search for baseline: %w", err)
+		}
+	}
+
+	if len(matches) == 0 {
+		return nil, fmt.Errorf("baseline batch %q not found in %s", batchID, r.baseDir)
+	}
+
+	// Use the most recent match if multiple are found
+	sort.Strings(matches)
+	return loadManifestFile(matches[len(matches)-1])
+}
+
+// loadManifestFile loads a batch result from a manifest file.
+func loadManifestFile(path string) (*BatchResult, error) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read manifest: %w", err)
+	}
+
+	var result BatchResult
+	if err := json.Unmarshal(data, &result); err != nil {
+		return nil, fmt.Errorf("failed to parse manifest: %w", err)
+	}
+
+	return &result, nil
+}
+
+// Compare compares the current batch result against a baseline and returns a Comparison.
+func (r *Runner) Compare(current, baseline *BatchResult) *Comparison {
+	comparison := &Comparison{
+		BaselineID: baseline.ID,
+	}
+
+	// Build maps for efficient lookup
+	baselineResults := make(map[string]*ScenarioResult)
+	for i := range baseline.Results {
+		sr := &baseline.Results[i]
+		baselineResults[sr.Scenario] = sr
+	}
+
+	currentResults := make(map[string]*ScenarioResult)
+	for i := range current.Results {
+		sr := &current.Results[i]
+		currentResults[sr.Scenario] = sr
+	}
+
+	// Analyze each scenario in the current run
+	for scenario, curr := range currentResults {
+		base, existed := baselineResults[scenario]
+
+		if !existed {
+			// New scenario that didn't exist in baseline
+			if curr.Status == StatusFailed || curr.Status == StatusError {
+				comparison.NewIssues = append(comparison.NewIssues, ComparisonItem{
+					Scenario:    scenario,
+					Description: fmt.Sprintf("New failing scenario: %s", curr.Error),
+					Severity:    getHighestSeverity(curr.Observations),
+				})
+			}
+			continue
+		}
+
+		// Compare status changes
+		currFailing := curr.Status == StatusFailed || curr.Status == StatusError
+		baseFailing := base.Status == StatusFailed || base.Status == StatusError
+
+		if baseFailing && !currFailing {
+			// Fixed - was failing, now passing
+			comparison.Fixed = append(comparison.Fixed, ComparisonItem{
+				Scenario:    scenario,
+				Description: "Test now passes",
+				Severity:    getHighestSeverity(base.Observations),
+			})
+		} else if !baseFailing && currFailing {
+			// New regression - was passing, now failing
+			comparison.NewIssues = append(comparison.NewIssues, ComparisonItem{
+				Scenario:    scenario,
+				Description: fmt.Sprintf("Regression: %s", curr.Error),
+				Severity:    getHighestSeverity(curr.Observations),
+			})
+		} else if baseFailing && currFailing {
+			// Recurring - still failing
+			comparison.Recurring = append(comparison.Recurring, ComparisonItem{
+				Scenario:    scenario,
+				Description: fmt.Sprintf("Still failing: %s", curr.Error),
+				Severity:    getHighestSeverity(curr.Observations),
+				RunCount:    2, // At least 2 runs (baseline + current)
+			})
+		}
+
+		// Also check for observation changes in passing tests
+		if !currFailing && !baseFailing {
+			currObs := countObservations(curr.Observations)
+			baseObs := countObservations(base.Observations)
+
+			if currObs > baseObs {
+				// New observations appeared
+				comparison.NewIssues = append(comparison.NewIssues, ComparisonItem{
+					Scenario:    scenario,
+					Description: fmt.Sprintf("New observations: %d (was %d)", currObs, baseObs),
+					Severity:    getHighestSeverity(curr.Observations),
+				})
+			} else if currObs < baseObs {
+				// Observations resolved
+				comparison.Fixed = append(comparison.Fixed, ComparisonItem{
+					Scenario:    scenario,
+					Description: fmt.Sprintf("Observations reduced: %d (was %d)", currObs, baseObs),
+					Severity:    getHighestSeverity(base.Observations),
+				})
+			}
+		}
+	}
+
+	// Check for scenarios that were in baseline but not in current (removed/renamed)
+	for scenario, base := range baselineResults {
+		if _, exists := currentResults[scenario]; !exists {
+			baseFailing := base.Status == StatusFailed || base.Status == StatusError
+			if baseFailing {
+				// A failing test was removed - could be a fix or just removal
+				comparison.Fixed = append(comparison.Fixed, ComparisonItem{
+					Scenario:    scenario,
+					Description: "Scenario removed from test suite",
+					Severity:    getHighestSeverity(base.Observations),
+				})
+			}
+		}
+	}
+
+	// Calculate regression score
+	// Positive = improvement, Negative = regression
+	comparison.RegressionScore = len(comparison.Fixed) - len(comparison.NewIssues)
+
+	return comparison
+}
+
+// getHighestSeverity returns the highest severity from an observations map.
+func getHighestSeverity(observations map[string]int) string {
+	severities := []string{"P0", "P1", "P2", "P3"}
+	for _, sev := range severities {
+		if count, ok := observations[sev]; ok && count > 0 {
+			return sev
+		}
+	}
+	return "P3" // Default to lowest severity
+}
+
+// countObservations returns the total number of observations.
+func countObservations(observations map[string]int) int {
+	total := 0
+	for _, count := range observations {
+		total += count
+	}
+	return total
 }
