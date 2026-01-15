@@ -10,8 +10,8 @@ import (
 
 	"github.com/spf13/cobra"
 	"github.com/steveyegge/gastown/internal/style"
+	"github.com/steveyegge/gastown/internal/tester"
 	"github.com/steveyegge/gastown/internal/ui"
-	"gopkg.in/yaml.v3"
 )
 
 // Run command flags
@@ -51,55 +51,6 @@ Examples:
   gt tester run scenarios/signup.yaml --no-retry      # Disable retry`,
 	Args: cobra.ExactArgs(1),
 	RunE: runTesterRun,
-}
-
-// TestScenario represents a parsed scenario file
-type TestScenario struct {
-	Scenario    string   `yaml:"scenario" json:"scenario"`
-	Version     int      `yaml:"version" json:"version"`
-	Description string   `yaml:"description" json:"description"`
-	Tags        []string `yaml:"tags" json:"tags"`
-
-	Persona struct {
-		Name        string `yaml:"name" json:"name"`
-		Role        string `yaml:"role" json:"role"`
-		Context     string `yaml:"context" json:"context"`
-		TechComfort string `yaml:"tech_comfort" json:"tech_comfort"`
-		Patience    string `yaml:"patience" json:"patience"`
-		Device      string `yaml:"device" json:"device"`
-	} `yaml:"persona" json:"persona"`
-
-	Target struct {
-		App         string `yaml:"app" json:"app"`
-		Environment string `yaml:"environment" json:"environment"`
-		URL         string `yaml:"url" json:"url"`
-	} `yaml:"target" json:"target"`
-
-	Goal  string   `yaml:"goal" json:"goal"`
-	Steps []string `yaml:"steps" json:"steps"`
-
-	SuccessCriteria []string `yaml:"success_criteria" json:"success_criteria"`
-	Evaluate        []string `yaml:"evaluate" json:"evaluate"`
-
-	Recording struct {
-		Video       bool `yaml:"video" json:"video"`
-		Trace       bool `yaml:"trace" json:"trace"`
-		Screenshots struct {
-			OnFailure   bool `yaml:"on_failure" json:"on_failure"`
-			OnConfusion bool `yaml:"on_confusion" json:"on_confusion"`
-			OnDemand    bool `yaml:"on_demand" json:"on_demand"`
-		} `yaml:"screenshots" json:"screenshots"`
-	} `yaml:"recording" json:"recording"`
-
-	Retry struct {
-		MaxAttempts int      `yaml:"max_attempts" json:"max_attempts"`
-		Backoff     string   `yaml:"backoff" json:"backoff"`
-		BackoffBase int      `yaml:"backoff_base" json:"backoff_base"`
-		NotOn       []string `yaml:"not_on" json:"not_on"`
-	} `yaml:"retry" json:"retry"`
-
-	Timeout int    `yaml:"timeout" json:"timeout"`
-	Model   string `yaml:"model" json:"model"`
 }
 
 // TestRunResult contains the result of a test run
@@ -167,17 +118,11 @@ func runTesterRun(cmd *cobra.Command, args []string) error {
 
 	// Print header
 	fmt.Printf("\n%s %s\n", style.Bold.Render("Running:"), scenario.Scenario)
-	if scenario.Description != "" {
-		fmt.Printf("  %s\n", ui.RenderMuted(scenario.Description))
-	}
-	fmt.Printf("  Persona: %s, %s\n", scenario.Persona.Name, scenario.Persona.Context)
-	fmt.Printf("  App: %s (%s)\n", scenario.Target.App, scenario.Target.Environment)
+	fmt.Printf("  Persona: %s\n", scenario.Persona)
+	fmt.Printf("  URL: %s\n", scenario.Environment.URL)
 
-	// Determine model
-	model := scenario.Model
-	if runModel != "" {
-		model = runModel
-	}
+	// Determine model (use flag or default to haiku)
+	model := runModel
 	if model == "" {
 		model = "haiku"
 	}
@@ -199,7 +144,7 @@ func runTesterRun(cmd *cobra.Command, args []string) error {
 
 	// Determine retry config
 	maxAttempts := 3
-	if scenario.Retry.MaxAttempts > 0 {
+	if scenario.Retry != nil && scenario.Retry.MaxAttempts > 0 {
 		maxAttempts = scenario.Retry.MaxAttempts
 	}
 	if runRetry > 0 {
@@ -209,10 +154,10 @@ func runTesterRun(cmd *cobra.Command, args []string) error {
 		maxAttempts = 1
 	}
 
-	// Determine timeout
+	// Determine timeout (scenario.Timeout is YAMLDuration)
 	timeout := 600
-	if scenario.Timeout > 0 {
-		timeout = scenario.Timeout
+	if scenario.Timeout.Duration() > 0 {
+		timeout = int(scenario.Timeout.Duration().Seconds())
 	}
 	if runTimeout > 0 {
 		timeout = runTimeout
@@ -256,7 +201,11 @@ func runTesterRun(cmd *cobra.Command, args []string) error {
 		// Check if this is an infrastructure error (retriable)
 		if infraErr, ok := runErr.(InfrastructureError); ok {
 			// Check if this error type should not be retried
-			if isNoRetryError(infraErr, scenario.Retry.NotOn) {
+			var notOn []string
+			if scenario.Retry != nil {
+				notOn = scenario.Retry.NotOn
+			}
+			if isNoRetryError(infraErr, notOn) {
 				lastErr = runErr
 				break
 			}
@@ -362,30 +311,9 @@ func runTesterRun(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-// loadScenario loads and parses a scenario YAML file
-func loadScenario(path string) (*TestScenario, error) {
-	data, err := os.ReadFile(path)
-	if err != nil {
-		return nil, fmt.Errorf("reading file: %w", err)
-	}
-
-	var scenario TestScenario
-	if err := yaml.Unmarshal(data, &scenario); err != nil {
-		return nil, fmt.Errorf("parsing YAML: %w", err)
-	}
-
-	// Validate required fields
-	if scenario.Scenario == "" {
-		return nil, fmt.Errorf("scenario name is required")
-	}
-	if scenario.Persona.Name == "" {
-		return nil, fmt.Errorf("persona name is required")
-	}
-	if scenario.Goal == "" {
-		return nil, fmt.Errorf("goal is required")
-	}
-
-	return &scenario, nil
+// loadScenario loads and parses a scenario YAML file using the tester package parser.
+func loadScenario(path string) (*tester.ScenarioConfig, error) {
+	return tester.ParseScenarioFile(path)
 }
 
 // runPreflightQuick runs a quick subset of preflight checks
@@ -417,11 +345,11 @@ func runPreflightQuick() (bool, error) {
 }
 
 // executeTestScenario runs the actual test scenario
-func executeTestScenario(scenario *TestScenario, result *TestRunResult, attempt int, timeout int, model string) error {
+func executeTestScenario(scenario *tester.ScenarioConfig, result *TestRunResult, attempt int, timeout int, model string) error {
 	fmt.Printf("Agent navigating... (attempt %d)\n", attempt)
 
 	// Initialize observation result
-	obsResult := NewObservationResult(scenario.Scenario, scenario.Persona.Name)
+	obsResult := NewObservationResult(scenario.Scenario, scenario.Persona)
 	obsResult.Model = model
 	obsResult.RunID = fmt.Sprintf("run-%03d", attempt)
 	result.ObservationResult = obsResult
@@ -468,13 +396,13 @@ func executeTestScenario(scenario *TestScenario, result *TestRunResult, attempt 
 }
 
 // generateSummaryMarkdown creates a human-readable summary of the test run
-func generateSummaryMarkdown(scenario *TestScenario, obsResult *ObservationResult, model string) string {
+func generateSummaryMarkdown(scenario *tester.ScenarioConfig, obsResult *ObservationResult, model string) string {
 	var sb strings.Builder
 
 	sb.WriteString("# Test Run Summary\n\n")
 	sb.WriteString(fmt.Sprintf("**Scenario**: %s\n", scenario.Scenario))
-	sb.WriteString(fmt.Sprintf("**Persona**: %s\n", scenario.Persona.Name))
-	sb.WriteString(fmt.Sprintf("**App**: %s (%s)\n", scenario.Target.App, scenario.Target.Environment))
+	sb.WriteString(fmt.Sprintf("**Persona**: %s\n", scenario.Persona))
+	sb.WriteString(fmt.Sprintf("**URL**: %s\n", scenario.Environment.URL))
 	sb.WriteString(fmt.Sprintf("**Model**: %s\n", model))
 	sb.WriteString(fmt.Sprintf("**Duration**: %d seconds\n", obsResult.DurationSeconds))
 	sb.WriteString(fmt.Sprintf("**Completed**: %v\n\n", obsResult.Completed))
@@ -544,21 +472,21 @@ func generateSummaryMarkdown(scenario *TestScenario, obsResult *ObservationResul
 }
 
 // calculateBackoff calculates the backoff duration for retry
-func calculateBackoff(attempt int, retry struct {
-	MaxAttempts int      `yaml:"max_attempts" json:"max_attempts"`
-	Backoff     string   `yaml:"backoff" json:"backoff"`
-	BackoffBase int      `yaml:"backoff_base" json:"backoff_base"`
-	NotOn       []string `yaml:"not_on" json:"not_on"`
-}) time.Duration {
-	base := 1000 // milliseconds
-	if retry.BackoffBase > 0 {
-		base = retry.BackoffBase
+func calculateBackoff(attempt int, retry *tester.ScenarioRetry) time.Duration {
+	base := 1000 // milliseconds (default)
+
+	// Determine backoff strategy
+	backoffStrategy := "exponential"
+	if retry != nil && retry.Backoff != "" {
+		backoffStrategy = retry.Backoff
 	}
 
 	// Exponential backoff by default
 	multiplier := 1
-	if retry.Backoff == "linear" {
+	if backoffStrategy == "linear" {
 		multiplier = attempt
+	} else if backoffStrategy == "fixed" {
+		multiplier = 1
 	} else {
 		// exponential
 		for i := 1; i < attempt; i++ {
