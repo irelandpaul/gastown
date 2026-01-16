@@ -18,6 +18,7 @@ import (
 var (
 	plannerStatusJSON bool
 	plannerShowJSON   bool
+	plannerRig        string
 )
 
 var plannerCmd = &cobra.Command{
@@ -125,6 +126,9 @@ Examples:
 var plannerNewIdea string
 
 func init() {
+	// Persistent flag for rig selection (applies to all subcommands)
+	plannerCmd.PersistentFlags().StringVar(&plannerRig, "rig", "", "Target rig (e.g., gastown, screencoach)")
+
 	// New command flags
 	plannerNewCmd.Flags().StringVar(&plannerNewIdea, "idea", "", "Initial idea/description for the feature")
 
@@ -156,10 +160,16 @@ func getPlannerManager() (*planner.Manager, *rig.Rig, error) {
 		return nil, nil, fmt.Errorf("not in a Gas Town workspace: %w", err)
 	}
 
-	// Infer rig from cwd
-	rigName, err := inferRigFromCwd(townRoot)
-	if err != nil {
-		return nil, nil, fmt.Errorf("could not determine rig: %w", err)
+	var rigName string
+
+	// Use --rig flag if provided, otherwise infer from cwd
+	if plannerRig != "" {
+		rigName = plannerRig
+	} else {
+		rigName, err = inferRigFromCwd(townRoot)
+		if err != nil {
+			return nil, nil, fmt.Errorf("could not determine rig (use --rig flag or cd into a rig directory): %w", err)
+		}
 	}
 
 	_, r, err := getRig(rigName)
