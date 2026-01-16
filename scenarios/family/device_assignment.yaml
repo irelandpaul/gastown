@@ -1,0 +1,52 @@
+# AI User Testing Scenario: Device Assignment
+#
+# Tests assigning devices to children in the family account.
+# Verifies the device management and child-device linking workflow.
+
+scenario: device_assignment
+version: 1
+
+persona: sarah
+
+goal: |
+  As a parent, I want to view and manage device assignments for my
+  children so I can control which devices they can use.
+
+  I should:
+  - Log in with my existing credentials
+  - Navigate to the Devices page
+  - View the list of registered devices
+  - See which children are assigned to each device
+  - Understand how to assign or reassign a device to a child
+  - Check device status and activity
+
+success_criteria:
+  - Can navigate to Devices page from dashboard or navigation
+  - Devices page shows list of registered devices
+  - Each device shows its name and status
+  - Can see which child is assigned to each device
+  - Assignment mechanism is clear (dropdown, modal, or inline)
+  - Can view device details by clicking on a device
+  - Device activity or usage info is accessible
+  - Interface is responsive and intuitive
+
+environment:
+  url: http://localhost:5557/login
+  viewport:
+    width: 1280
+    height: 720
+
+test_data:
+  credentials:
+    email: "parent@demo.com"
+    password: "Demo123!"
+  cleanup_strategy:
+    on_success: none
+    on_failure: none
+
+timeout: 4m
+
+tags:
+  - devices
+  - assignment
+  - management

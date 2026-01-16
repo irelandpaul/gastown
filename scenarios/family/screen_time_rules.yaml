@@ -1,0 +1,63 @@
+# AI User Testing Scenario: Screen Time Rules
+#
+# Tests configuring screen time limits and rules for children.
+# Verifies parents can set daily limits, schedules, and app restrictions.
+
+scenario: screen_time_rules
+version: 1
+
+persona: sarah
+
+goal: |
+  As a parent, I want to configure screen time rules for my children
+  so I can control how much time they spend on their devices.
+
+  I should:
+  - Log in with my existing credentials
+  - Navigate to a child's profile or settings
+  - Find the screen time or rules configuration
+  - View current screen time limits (if any)
+  - Set or modify daily screen time limits
+  - Configure allowed hours or schedule if available
+  - Save the screen time rules
+  - Verify the rules are applied
+
+success_criteria:
+  - Can access screen time settings from child profile or dashboard
+  - Screen time configuration interface is clear and intuitive
+  - Can set daily time limits (e.g., 2 hours per day)
+  - Time limit input accepts reasonable values
+  - Can configure allowed time windows if feature exists
+  - Weekend vs weekday settings available if supported
+  - Save/Apply button is clearly visible
+  - Rules save successfully with confirmation
+  - Can view configured rules after saving
+
+environment:
+  url: http://localhost:5557/login
+  viewport:
+    width: 1280
+    height: 720
+
+test_data:
+  credentials:
+    email: "parent@demo.com"
+    password: "Demo123!"
+  target_child: "Emma"
+  screen_time_settings:
+    daily_limit_hours: 2
+    weekday_allowed_start: "15:00"
+    weekday_allowed_end: "20:00"
+    weekend_allowed_start: "10:00"
+    weekend_allowed_end: "21:00"
+  cleanup_strategy:
+    on_success: revert_settings
+    on_failure: mark_for_review
+
+timeout: 5m
+
+tags:
+  - family
+  - screen-time
+  - rules
+  - parental-controls

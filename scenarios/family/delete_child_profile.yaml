@@ -1,0 +1,55 @@
+# AI User Testing Scenario: Delete Child Profile
+#
+# Tests deleting a child profile from the family account.
+# This is a destructive action that should have confirmation.
+# Uses a test child created during the test.
+
+scenario: delete_child_profile
+version: 1
+
+persona: sarah
+
+goal: |
+  As a parent, I want to be able to remove a child profile from my
+  account when it is no longer needed.
+
+  I should:
+  - Log in with my existing credentials
+  - Navigate to the Family page
+  - First add a test child (to avoid deleting Emma or Liam)
+  - Find the delete option for the test child
+  - Confirm the deletion when prompted
+  - Verify the child is removed from the list
+
+success_criteria:
+  - Can find delete option for a child profile
+  - Delete action shows confirmation dialog
+  - Confirmation clearly states what will be deleted
+  - Can cancel the deletion if desired
+  - Confirming deletion removes the child
+  - Deleted child no longer appears in family list
+  - Other children remain unaffected
+
+environment:
+  url: http://localhost:5557/login
+  viewport:
+    width: 1280
+    height: 720
+
+test_data:
+  credentials:
+    email: "parent@demo.com"
+    password: "Demo123!"
+  test_child_to_delete:
+    name: "DeleteTestChild_{run_id}"
+    age: 7
+  cleanup_strategy:
+    on_success: none
+    on_failure: cleanup_test_child
+
+timeout: 5m
+
+tags:
+  - family
+  - delete-child
+  - destructive
