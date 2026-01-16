@@ -27,7 +27,7 @@ const (
 // RoleTypeFor returns the RoleType for a given role name.
 func RoleTypeFor(role string) RoleType {
 	switch role {
-	case "polecat", "witness", "refinery", "deacon":
+	case "polecat", "witness", "refinery", "deacon", "librarian":
 		return Autonomous
 	default:
 		return Interactive

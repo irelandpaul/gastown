@@ -198,3 +198,60 @@ func (m *Manager) Status() (*tmux.SessionInfo, error) {
 
 	return t.GetSessionInfo(sessionID)
 }
+
+// Enrich sends an enrichment request for a bead to the librarian session.
+// The librarian will add context, analysis, and related information to the bead.
+func (m *Manager) Enrich(beadID string) error {
+	t := tmux.NewTmux()
+	sessionID := m.SessionName()
+
+	running, err := t.HasSession(sessionID)
+	if err != nil {
+		return fmt.Errorf("checking session: %w", err)
+	}
+	if !running {
+		return ErrNotRunning
+	}
+
+	// Send enrichment command to the librarian
+	msg := fmt.Sprintf("Enrich bead %s: research context, add relevant background, and update the bead with findings.", beadID)
+	return t.NudgeSession(sessionID, msg)
+}
+
+// Review sends a review request for a completed bead to the librarian session.
+// The librarian will review the work and add observations.
+func (m *Manager) Review(beadID string) error {
+	t := tmux.NewTmux()
+	sessionID := m.SessionName()
+
+	running, err := t.HasSession(sessionID)
+	if err != nil {
+		return fmt.Errorf("checking session: %w", err)
+	}
+	if !running {
+		return ErrNotRunning
+	}
+
+	// Send review command to the librarian
+	msg := fmt.Sprintf("Review completed bead %s: analyze the work done, capture patterns, and record observations.", beadID)
+	return t.NudgeSession(sessionID, msg)
+}
+
+// Summarize sends a summarization request to the librarian session.
+// The librarian will analyze recent observations and synthesize them into axioms.
+func (m *Manager) Summarize() error {
+	t := tmux.NewTmux()
+	sessionID := m.SessionName()
+
+	running, err := t.HasSession(sessionID)
+	if err != nil {
+		return fmt.Errorf("checking session: %w", err)
+	}
+	if !running {
+		return ErrNotRunning
+	}
+
+	// Send summarize command to the librarian
+	msg := "Summarize recent observations: analyze patterns across completed beads and synthesize findings into axioms."
+	return t.NudgeSession(sessionID, msg)
+}

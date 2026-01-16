@@ -85,6 +85,7 @@ Stops the current session (if running) and starts a fresh one.`,
 	RunE: runLibrarianRestart,
 }
 
+// Skills commands (from main)
 var librarianSkillsCmd = &cobra.Command{
 	Use:   "skills",
 	Short: "List available skills",
@@ -140,15 +141,54 @@ var (
 	injectPreview bool
 )
 
+// Enrich/Review/Summarize commands (from polecat branch)
+var librarianEnrichCmd = &cobra.Command{
+	Use:   "enrich <bead-id>",
+	Short: "Manually enrich a bead",
+	Long: `Request the Librarian to enrich a specific bead with context.
+
+The Librarian will research relevant documentation, prior work, and codebase
+patterns, then attach "Required Reading" to the bead so polecats can work
+more efficiently.`,
+	Args: cobra.ExactArgs(1),
+	RunE: runLibrarianEnrich,
+}
+
+var librarianReviewCmd = &cobra.Command{
+	Use:   "review <bead-id>",
+	Short: "Manually review a completed bead",
+	Long: `Request the Librarian to review a completed bead.
+
+The Librarian will analyze the work done, capture patterns and lessons learned,
+and record observations for future reference.`,
+	Args: cobra.ExactArgs(1),
+	RunE: runLibrarianReview,
+}
+
+var librarianSummarizeCmd = &cobra.Command{
+	Use:   "summarize",
+	Short: "Summarize recent observations into axioms",
+	Long: `Request the Librarian to analyze recent observations and synthesize them.
+
+The Librarian will look at patterns across completed beads and distill
+findings into axioms that can guide future work.`,
+	RunE: runLibrarianSummarize,
+}
+
 func init() {
 	librarianCmd.AddCommand(librarianStartCmd)
 	librarianCmd.AddCommand(librarianStopCmd)
 	librarianCmd.AddCommand(librarianAttachCmd)
 	librarianCmd.AddCommand(librarianStatusCmd)
 	librarianCmd.AddCommand(librarianRestartCmd)
+	// Skills commands
 	librarianCmd.AddCommand(librarianSkillsCmd)
 	librarianCmd.AddCommand(librarianInjectCmd)
 	librarianCmd.AddCommand(librarianMatchCmd)
+	// Enrich/Review/Summarize commands
+	librarianCmd.AddCommand(librarianEnrichCmd)
+	librarianCmd.AddCommand(librarianReviewCmd)
+	librarianCmd.AddCommand(librarianSummarizeCmd)
 
 	librarianStartCmd.Flags().StringVar(&librarianAgentOverride, "agent", "", "Agent alias to use (default: gemini)")
 	librarianAttachCmd.Flags().StringVar(&librarianAgentOverride, "agent", "", "Agent alias to use (default: gemini)")
@@ -291,6 +331,8 @@ func runLibrarianRestart(cmd *cobra.Command, args []string) error {
 	// Start fresh
 	return runLibrarianStart(cmd, args)
 }
+
+// Skills command implementations
 
 func runLibrarianSkills(cmd *cobra.Command, args []string) error {
 	townRoot, err := workspace.FindFromCwdOrError()
@@ -535,4 +577,62 @@ func getSkillsPath() (string, error) {
 		return "", err
 	}
 	return filepath.Join(townRoot, "librarian", "skills"), nil
+}
+
+// Enrich/Review/Summarize command implementations
+
+func runLibrarianEnrich(cmd *cobra.Command, args []string) error {
+	mgr, err := getLibrarianManager()
+	if err != nil {
+		return err
+	}
+
+	beadID := args[0]
+	fmt.Printf("Requesting enrichment for bead %s...\n", beadID)
+	if err := mgr.Enrich(beadID); err != nil {
+		if err == librarian.ErrNotRunning {
+			return fmt.Errorf("Librarian session is not running. Start with: gt librarian start")
+		}
+		return err
+	}
+
+	fmt.Printf("%s Enrichment request sent to Librarian.\n", style.Bold.Render("✓"))
+	return nil
+}
+
+func runLibrarianReview(cmd *cobra.Command, args []string) error {
+	mgr, err := getLibrarianManager()
+	if err != nil {
+		return err
+	}
+
+	beadID := args[0]
+	fmt.Printf("Requesting review for bead %s...\n", beadID)
+	if err := mgr.Review(beadID); err != nil {
+		if err == librarian.ErrNotRunning {
+			return fmt.Errorf("Librarian session is not running. Start with: gt librarian start")
+		}
+		return err
+	}
+
+	fmt.Printf("%s Review request sent to Librarian.\n", style.Bold.Render("✓"))
+	return nil
+}
+
+func runLibrarianSummarize(cmd *cobra.Command, args []string) error {
+	mgr, err := getLibrarianManager()
+	if err != nil {
+		return err
+	}
+
+	fmt.Println("Requesting observation summarization...")
+	if err := mgr.Summarize(); err != nil {
+		if err == librarian.ErrNotRunning {
+			return fmt.Errorf("Librarian session is not running. Start with: gt librarian start")
+		}
+		return err
+	}
+
+	fmt.Printf("%s Summarization request sent to Librarian.\n", style.Bold.Render("✓"))
+	return nil
 }

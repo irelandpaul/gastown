@@ -79,6 +79,14 @@ func AgentEnv(cfg AgentEnvConfig) map[string]string {
 		env["GT_CREW"] = cfg.AgentName
 		env["BD_ACTOR"] = fmt.Sprintf("%s/crew/%s", cfg.Rig, cfg.AgentName)
 		env["GIT_AUTHOR_NAME"] = cfg.AgentName
+
+	case "aid":
+		env["BD_ACTOR"] = "aid"
+		env["GIT_AUTHOR_NAME"] = "aid"
+
+	case "librarian":
+		env["BD_ACTOR"] = "librarian"
+		env["GIT_AUTHOR_NAME"] = "librarian"
 	}
 
 	// Only set GT_ROOT and BEADS_DIR if provided
