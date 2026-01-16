@@ -40,8 +40,8 @@ test_data:
     email: "parent@demo.com"
     password: "Demo123!"
   cleanup_strategy:
-    on_success: none
-    on_failure: none
+    on_success: keep
+    on_failure: keep
 
 timeout: 3m
 

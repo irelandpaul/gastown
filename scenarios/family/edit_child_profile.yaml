@@ -43,7 +43,7 @@ test_data:
     password: "Demo123!"
   target_child: "Emma"
   cleanup_strategy:
-    on_success: revert_changes
+    on_success: keep
     on_failure: mark_for_review
 
 timeout: 4m

@@ -44,8 +44,8 @@ test_data:
     name: "DeleteTestChild_{run_id}"
     age: 7
   cleanup_strategy:
-    on_success: none
-    on_failure: cleanup_test_child
+    on_success: keep
+    on_failure: mark_for_review
 
 timeout: 5m
 
