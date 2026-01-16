@@ -32,6 +32,12 @@ func MayorAidSessionName() string {
 	return HQPrefix + "mayor-aid"
 }
 
+// LibrarianSessionName returns the session name for the Librarian agent.
+// One librarian per machine - research agent that enriches beads with context.
+func LibrarianSessionName() string {
+	return HQPrefix + "librarian"
+}
+
 // WitnessSessionName returns the session name for a rig's Witness agent.
 func WitnessSessionName(rig string) string {
 	return fmt.Sprintf("%s%s-witness", Prefix, rig)
@@ -84,6 +90,8 @@ func PropulsionNudgeForRole(role, workDir string) string {
 		msg = "Run `gt prime` to check mail and begin coordination."
 	case "aid":
 		msg = PropulsionNudge() // Aid uses same hook-based propulsion as polecats
+	case "librarian":
+		msg = PropulsionNudge() // Librarian uses hook-based propulsion for enrichment requests
 	default:
 		msg = PropulsionNudge()
 	}

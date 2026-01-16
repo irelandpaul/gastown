@@ -46,6 +46,12 @@ func AidTheme() Theme {
 	return Theme{Name: "aid", BG: "#4a3728", FG: "#d4a574"}
 }
 
+// LibrarianTheme returns the special theme for the Librarian session.
+// Deep library green/cream - evokes classic libraries and knowledge.
+func LibrarianTheme() Theme {
+	return Theme{Name: "librarian", BG: "#1e4d3d", FG: "#f5f0e1"}
+}
+
 // GetThemeByName finds a theme by name from the default palette.
 // Returns nil if not found.
 func GetThemeByName(name string) *Theme {
