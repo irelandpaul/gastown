@@ -38,6 +38,12 @@ func LibrarianSessionName() string {
 	return HQPrefix + "librarian"
 }
 
+// PlannerSessionName returns the session name for a rig's Planner agent.
+// The planner is rig-specific - each rig can have its own planner session.
+func PlannerSessionName(rig string) string {
+	return fmt.Sprintf("%s%s-planner", Prefix, rig)
+}
+
 // WitnessSessionName returns the session name for a rig's Witness agent.
 func WitnessSessionName(rig string) string {
 	return fmt.Sprintf("%s%s-witness", Prefix, rig)
@@ -92,6 +98,8 @@ func PropulsionNudgeForRole(role, workDir string) string {
 		msg = PropulsionNudge() // Aid uses same hook-based propulsion as polecats
 	case "librarian":
 		msg = PropulsionNudge() // Librarian uses hook-based propulsion for enrichment requests
+	case "planner":
+		msg = "Run `gt prime` to check for planning sessions and begin work."
 	default:
 		msg = PropulsionNudge()
 	}

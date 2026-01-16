@@ -52,6 +52,12 @@ func LibrarianTheme() Theme {
 	return Theme{Name: "librarian", BG: "#1e4d3d", FG: "#f5f0e1"}
 }
 
+// PlannerTheme returns the special theme for the Planner session.
+// Blue/cyan - planning/blueprint aesthetic, professional and focused.
+func PlannerTheme() Theme {
+	return Theme{Name: "planner", BG: "#1a3a4a", FG: "#7ec8e3"}
+}
+
 // GetThemeByName finds a theme by name from the default palette.
 // Returns nil if not found.
 func GetThemeByName(name string) *Theme {
