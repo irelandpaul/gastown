@@ -1,0 +1,75 @@
+# AI User Testing Scenario: Screen Time Charts
+#
+# This scenario tests the screen time visualization charts on the dashboard.
+# The AI agent will explore the chart interactions, time period selectors,
+# and evaluate how well the data is visualized.
+
+scenario: dashboard_screen_time_charts
+version: 1
+
+persona: sarah
+
+goal: |
+  As a registered parent, I want to view screen time charts that show my
+  child's usage patterns over time so that I can identify trends and
+  make informed decisions about screen time limits.
+
+  I should be able to:
+  - Log in and navigate to screen time charts
+  - View daily, weekly, and monthly screen time data
+  - Interact with the charts (hover, click for details)
+  - Understand the data being presented
+  - Change the time period being displayed
+
+success_criteria:
+  - Charts load without errors
+  - Time period selector is functional
+  - Charts display meaningful data
+  - Hover/click interactions provide additional details
+  - Data labels are clear and readable
+
+environment:
+  url: http://localhost:5175
+  viewport:
+    width: 1280
+    height: 720
+
+test_data:
+  use_existing_account: true
+  credentials:
+    email: "parent@demo.com"
+    password: "Demo123!"
+  cleanup_strategy:
+    on_success: none
+    on_failure: none
+    on_crash: none
+
+wait_strategies:
+  network_idle: true
+  animation_complete: true
+  min_load_time: 1500
+
+recording:
+  headed: false
+  video: true
+  trace: true
+  screenshots: true
+
+retry:
+  max_attempts: 3
+  on_errors:
+    - browser_crash
+    - timeout
+    - network_error
+  not_on:
+    - test_failure
+    - blocked
+  backoff: exponential
+
+timeout: 4m
+
+tags:
+  - dashboard
+  - monitoring
+  - charts
+  - screen-time
