@@ -1,0 +1,51 @@
+# Example skill: Go Testing
+# Triggered when beads relate to testing in Go projects
+
+id: go-testing
+name: Go Testing
+description: Patterns and files for writing Go tests
+
+triggers:
+  # Match any of these conditions (OR logic)
+  keywords:
+    - "test"
+    - "testing"
+    - "unittest"
+  labels:
+    - "gt:testing"
+    - "domain:testing"
+  title_patterns:
+    - "add.*test"
+    - "write.*test"
+    - "fix.*test"
+
+content:
+  files:
+    - path: "*_test.go"
+      description: Existing test files for patterns
+      optional: true
+    - path: "internal/testutil/"
+      description: Test utilities and helpers
+      optional: true
+
+  patterns:
+    - name: Table-driven tests
+      description: Use testify/assert with table-driven test patterns
+      example: "internal/beads/beads_test.go"
+    - name: Test fixtures
+      description: Place fixtures in testdata/ directories
+    - name: Mock interfaces
+      description: Use interfaces for dependency injection in tests
+
+  documentation:
+    - title: Go Testing
+      url: https://pkg.go.dev/testing
+      description: Standard library testing package
+    - title: Testify
+      url: https://github.com/stretchr/testify
+      description: Testing toolkit with assertions
+
+  context_notes:
+    - Run tests with 'go test ./...' or 'make test'
+    - Use -v flag for verbose output
+    - Consider race detection with -race flag

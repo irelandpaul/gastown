@@ -1,0 +1,66 @@
+# Example skill: Authentication
+# Triggered for auth-related work
+
+id: authentication
+name: Authentication
+description: Security patterns for authentication features
+
+triggers:
+  keywords:
+    - "auth"
+    - "authentication"
+    - "login"
+    - "logout"
+    - "jwt"
+    - "token"
+    - "session"
+  labels:
+    - "domain:auth"
+    - "security:*"
+  title_patterns:
+    - "add.*auth"
+    - "implement.*login"
+    - "fix.*authentication"
+
+# High priority - security is important
+priority: 10
+
+# Only one auth skill in this group
+exclusive: auth-method
+
+content:
+  files:
+    - path: "internal/auth/"
+      description: Authentication package
+      optional: true
+    - path: "internal/middleware/auth.go"
+      description: Auth middleware
+      optional: true
+    - path: "config/auth.yaml"
+      description: Auth configuration
+      optional: true
+
+  patterns:
+    - name: Token validation
+      description: Validate tokens before trusting claims
+      example: "internal/auth/validate.go"
+    - name: Password hashing
+      description: Use bcrypt or argon2 for password hashing, never store plaintext
+    - name: Secure session handling
+      description: Use HTTP-only, Secure cookies for session tokens
+    - name: Rate limiting
+      description: Apply rate limits to auth endpoints to prevent brute force
+
+  documentation:
+    - title: OWASP Auth Cheatsheet
+      url: https://cheatsheetseries.owasp.org/cheatsheets/Authentication_Cheat_Sheet.html
+      description: Security best practices
+    - title: JWT Best Practices
+      url: https://auth0.com/blog/a-look-at-the-latest-draft-for-jwt-bcp/
+      description: JWT security considerations
+
+  context_notes:
+    - NEVER log passwords or tokens
+    - Always validate on the server side, don't trust client
+    - Consider token refresh mechanisms for long-lived sessions
+    - Test for common auth vulnerabilities (SQL injection, timing attacks)

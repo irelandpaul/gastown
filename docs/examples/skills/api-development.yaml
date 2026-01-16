@@ -1,0 +1,59 @@
+# Example skill: API Development
+# Triggered for API endpoint work
+
+id: api-development
+name: API Development
+description: Patterns for building REST API endpoints
+
+triggers:
+  keywords:
+    - "endpoint"
+    - "api"
+    - "handler"
+    - "route"
+  labels:
+    - "domain:api"
+    - "gt:api"
+  title_patterns:
+    - "add.*endpoint"
+    - "create.*api"
+    - "implement.*handler"
+
+# Higher priority than generic skills
+priority: 5
+
+content:
+  files:
+    - path: "internal/api/"
+      description: API package with handlers and routes
+      optional: true
+    - path: "internal/routes/"
+      description: Route definitions
+      optional: true
+    - path: "cmd/server/main.go"
+      description: Server entrypoint showing route registration
+      optional: true
+
+  patterns:
+    - name: Handler signature
+      description: Use func(w http.ResponseWriter, r *http.Request) or framework equivalent
+      example: "internal/api/handler.go"
+    - name: Error responses
+      description: Use structured error responses with proper HTTP status codes
+    - name: Request validation
+      description: Validate input before processing
+    - name: Middleware chain
+      description: Apply auth, logging, and other middleware in consistent order
+
+  documentation:
+    - title: net/http
+      url: https://pkg.go.dev/net/http
+      description: Go standard HTTP package
+    - title: Chi Router
+      url: https://github.com/go-chi/chi
+      description: Lightweight router (if used)
+
+  context_notes:
+    - Follow RESTful conventions for resource naming
+    - Document endpoints in OpenAPI/Swagger if available
+    - Include request/response examples in tests
