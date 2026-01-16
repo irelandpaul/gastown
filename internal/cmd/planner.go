@@ -9,6 +9,7 @@ import (
 
 	"github.com/spf13/cobra"
 	"github.com/steveyegge/gastown/internal/planner"
+	"github.com/steveyegge/gastown/internal/planneragent"
 	"github.com/steveyegge/gastown/internal/rig"
 	"github.com/steveyegge/gastown/internal/style"
 	"github.com/steveyegge/gastown/internal/workspace"
@@ -25,14 +26,18 @@ var plannerCmd = &cobra.Command{
 	Use:     "planner",
 	GroupID: GroupWork,
 	Short:   "Plan specs through structured planning",
-	RunE:    requireSubcommand,
+	RunE:    runPlannerDefault,
 	Long: `Plan feature specs through a structured planning process.
 
-The planner command family manages the spec planning workflow:
-1. Start a new planning session with an idea
-2. Answer clarifying questions
-3. Review the generated proposal
-4. Approve and generate the final spec
+Running 'gt planner' with no arguments opens an interactive planner session
+where you can describe what you want to build and the planner guides you
+through questions to shape the spec.
+
+Subcommands are available for specific operations:
+  gt planner start   - Start planner session in background
+  gt planner attach  - Attach to running session
+  gt planner new     - Create a new planning session record
+  gt planner status  - Check session status
 
 This implements the "Plan before you build" discipline for AI-driven development.`,
 }
@@ -125,6 +130,57 @@ Examples:
 // Flags for planner new
 var plannerNewIdea string
 
+// Flags for planner session management
+var plannerAgentOverride string
+
+// Session management commands
+var plannerAgentStartCmd = &cobra.Command{
+	Use:   "start",
+	Short: "Start the Planner agent session",
+	Long: `Start the Planner agent tmux session for a rig.
+
+Creates a new detached tmux session and launches Claude in the rig's .specs/ directory.
+The Planner agent helps you shape feature specs through conversation.
+
+Examples:
+  gt planner start --rig gastown
+  gt planner start --agent gemini`,
+	RunE: runPlannerAgentStart,
+}
+
+var plannerAgentStopCmd = &cobra.Command{
+	Use:   "stop",
+	Short: "Stop the Planner agent session",
+	Long: `Stop the Planner agent tmux session.
+
+Attempts graceful shutdown first (Ctrl-C), then kills the tmux session.`,
+	RunE: runPlannerAgentStop,
+}
+
+var plannerAgentAttachCmd = &cobra.Command{
+	Use:     "attach",
+	Aliases: []string{"at"},
+	Short:   "Attach to the Planner agent session",
+	Long: `Attach to the running Planner agent tmux session.
+
+Attaches the current terminal to the Planner's tmux session.
+If the session is not running, it will be started automatically.
+Detach with Ctrl-B D.
+
+Examples:
+  gt planner attach --rig gastown`,
+	RunE: runPlannerAgentAttach,
+}
+
+var plannerAgentRestartCmd = &cobra.Command{
+	Use:   "restart",
+	Short: "Restart the Planner agent session",
+	Long: `Restart the Planner agent tmux session.
+
+Stops the current session (if running) and starts a fresh one.`,
+	RunE: runPlannerAgentRestart,
+}
+
 func init() {
 	// Persistent flag for rig selection (applies to all subcommands)
 	plannerCmd.PersistentFlags().StringVar(&plannerRig, "rig", "", "Target rig (e.g., gastown, screencoach)")
@@ -141,6 +197,11 @@ func init() {
 	// List command flags
 	plannerListCmd.Flags().BoolVar(&plannerStatusJSON, "json", false, "Output as JSON")
 
+	// Agent session flags
+	plannerAgentStartCmd.Flags().StringVar(&plannerAgentOverride, "agent", "", "Agent alias to use (overrides default)")
+	plannerAgentAttachCmd.Flags().StringVar(&plannerAgentOverride, "agent", "", "Agent alias to use (overrides default)")
+	plannerAgentRestartCmd.Flags().StringVar(&plannerAgentOverride, "agent", "", "Agent alias to use (overrides default)")
+
 	// Add subcommands
 	plannerCmd.AddCommand(plannerNewCmd)
 	plannerCmd.AddCommand(plannerStatusCmd)
@@ -148,6 +209,12 @@ func init() {
 	plannerCmd.AddCommand(plannerListCmd)
 	plannerCmd.AddCommand(plannerCancelCmd)
 	plannerCmd.AddCommand(plannerAnswerCmd)
+
+	// Add session management subcommands
+	plannerCmd.AddCommand(plannerAgentStartCmd)
+	plannerCmd.AddCommand(plannerAgentStopCmd)
+	plannerCmd.AddCommand(plannerAgentAttachCmd)
+	plannerCmd.AddCommand(plannerAgentRestartCmd)
 
 	rootCmd.AddCommand(plannerCmd)
 }
@@ -179,6 +246,12 @@ func getPlannerManager() (*planner.Manager, *rig.Rig, error) {
 
 	mgr := planner.NewManager(r)
 	return mgr, r, nil
+}
+
+// runPlannerDefault is the default behavior when 'gt planner' is run without arguments.
+// It opens an interactive planner session (auto-starting if needed).
+func runPlannerDefault(cmd *cobra.Command, args []string) error {
+	return runPlannerAgentAttach(cmd, args)
 }
 
 func runPlannerNew(cmd *cobra.Command, args []string) error {
@@ -484,4 +557,109 @@ func runPlannerAnswer(cmd *cobra.Command, args []string) error {
 	}
 
 	return nil
+}
+
+// getPlannerAgentManager returns a planner agent manager for the current rig.
+func getPlannerAgentManager() (*planneragent.Manager, *rig.Rig, error) {
+	// Find town root
+	townRoot, err := workspace.FindFromCwdOrError()
+	if err != nil {
+		return nil, nil, fmt.Errorf("not in a Gas Town workspace: %w", err)
+	}
+
+	var rigName string
+
+	// Use --rig flag if provided, otherwise infer from cwd
+	if plannerRig != "" {
+		rigName = plannerRig
+	} else {
+		rigName, err = inferRigFromCwd(townRoot)
+		if err != nil {
+			return nil, nil, fmt.Errorf("could not determine rig (use --rig flag or cd into a rig directory): %w", err)
+		}
+	}
+
+	_, r, err := getRig(rigName)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	mgr := planneragent.NewManager(townRoot, r)
+	return mgr, r, nil
+}
+
+func runPlannerAgentStart(cmd *cobra.Command, args []string) error {
+	mgr, r, err := getPlannerAgentManager()
+	if err != nil {
+		return err
+	}
+
+	fmt.Printf("Starting Planner session for %s...\n", r.Name)
+	if err := mgr.Start(plannerAgentOverride); err != nil {
+		if err == planneragent.ErrAlreadyRunning {
+			return fmt.Errorf("Planner session already running. Attach with: gt planner attach --rig %s", r.Name)
+		}
+		return err
+	}
+
+	fmt.Printf("%s Planner session started. Attach with: %s\n",
+		style.Bold.Render("✓"),
+		style.Dim.Render(fmt.Sprintf("gt planner attach --rig %s", r.Name)))
+
+	return nil
+}
+
+func runPlannerAgentStop(cmd *cobra.Command, args []string) error {
+	mgr, r, err := getPlannerAgentManager()
+	if err != nil {
+		return err
+	}
+
+	fmt.Printf("Stopping Planner session for %s...\n", r.Name)
+	if err := mgr.Stop(); err != nil {
+		if err == planneragent.ErrNotRunning {
+			return fmt.Errorf("Planner session is not running")
+		}
+		return err
+	}
+
+	fmt.Printf("%s Planner session stopped.\n", style.Bold.Render("✓"))
+	return nil
+}
+
+func runPlannerAgentAttach(cmd *cobra.Command, args []string) error {
+	mgr, r, err := getPlannerAgentManager()
+	if err != nil {
+		return err
+	}
+
+	running, err := mgr.IsRunning()
+	if err != nil {
+		return fmt.Errorf("checking session: %w", err)
+	}
+	if !running {
+		// Auto-start if not running
+		fmt.Printf("Planner session for %s not running, starting...\n", r.Name)
+		if err := mgr.Start(plannerAgentOverride); err != nil {
+			return err
+		}
+	}
+
+	// Use shared attach helper
+	return attachToTmuxSession(mgr.SessionName())
+}
+
+func runPlannerAgentRestart(cmd *cobra.Command, args []string) error {
+	mgr, _, err := getPlannerAgentManager()
+	if err != nil {
+		return err
+	}
+
+	// Stop if running (ignore not-running error)
+	if err := mgr.Stop(); err != nil && err != planneragent.ErrNotRunning {
+		return fmt.Errorf("stopping session: %w", err)
+	}
+
+	// Start fresh
+	return runPlannerAgentStart(cmd, args)
 }
