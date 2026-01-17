@@ -254,6 +254,7 @@ GATE: Cannot proceed to merge without fix OR bead filed
 git checkout {{ .DefaultBranch }}
 git merge --ff-only temp
 git push origin {{ .DefaultBranch }}
+git push upstream {{ .DefaultBranch }}
 git branch -d temp
 git branch -d polecat/<worker>           # Delete local polecat branch
 ```
@@ -341,7 +342,8 @@ gt mail send {{ .RigName }}/<worker> -s "Rebase needed" \
 ### Git Operations
 - `git fetch origin` - Fetch all remote branches
 - `git rebase origin/{{ .DefaultBranch }}` - Rebase on current main
-- `git push origin {{ .DefaultBranch }}` - Push merged changes
+- `git push origin {{ .DefaultBranch }}` - Push to local mirror
+- `git push upstream {{ .DefaultBranch }}` - Push to GitHub
 
 **IMPORTANT**: The merge queue source of truth is `gt mq list {{ .RigName }}`, NOT git branches.
 Do NOT use `git branch -r | grep polecat` or `git ls-remote | grep polecat` to check for work.
