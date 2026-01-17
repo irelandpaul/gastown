@@ -10,7 +10,7 @@ import (
 
 	"github.com/spf13/cobra"
 	"github.com/steveyegge/gastown/internal/beads"
-	"github.com/steveyegge/gastown/internal/mrqueue"
+	"github.com/steveyegge/gastown/internal/refinery"
 	"github.com/steveyegge/gastown/internal/style"
 )
 
@@ -71,6 +71,22 @@ func runMQList(cmd *cobra.Command, args []string) error {
 	var scored []scoredIssue
 
 	for _, issue := range issues {
+		// Manual status filtering as workaround for bd list not respecting --status filter
+		if mqListReady {
+			// Ready view should only show open MRs
+			if issue.Status != "open" {
+				continue
+			}
+		} else if mqListStatus != "" && !strings.EqualFold(mqListStatus, "all") {
+			// Explicit status filter should match exactly
+			if !strings.EqualFold(issue.Status, mqListStatus) {
+				continue
+			}
+		} else if mqListStatus == "" && issue.Status != "open" {
+			// Default case (no status specified) should only show open
+			continue
+		}
+
 		// Parse MR fields
 		fields := beads.ParseMRFields(issue)
 
@@ -260,7 +276,7 @@ func outputJSON(data interface{}) error {
 	return enc.Encode(data)
 }
 
-// calculateMRScore computes the priority score for an MR using the mrqueue scoring function.
+// calculateMRScore computes the priority score for an MR using the refinery scoring function.
 // Higher scores mean higher priority (process first).
 func calculateMRScore(issue *beads.Issue, fields *beads.MRFields, now time.Time) float64 {
 	// Parse MR creation time
@@ -273,7 +289,7 @@ func calculateMRScore(issue *beads.Issue, fields *beads.MRFields, now time.Time)
 	}
 
 	// Build score input
-	input := mrqueue.ScoreInput{
+	input := refinery.ScoreInput{
 		Priority:    issue.Priority,
 		MRCreatedAt: mrCreatedAt,
 		Now:         now,
@@ -291,5 +307,5 @@ func calculateMRScore(issue *beads.Issue, fields *beads.MRFields, now time.Time)
 		}
 	}
 
-	return mrqueue.ScoreMRWithDefaults(input)
+	return refinery.ScoreMRWithDefaults(input)
 }

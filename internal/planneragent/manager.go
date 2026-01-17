@@ -7,7 +7,6 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/steveyegge/gastown/internal/beads"
 	"github.com/steveyegge/gastown/internal/claude"
 	"github.com/steveyegge/gastown/internal/config"
 	"github.com/steveyegge/gastown/internal/constants"
@@ -78,7 +77,7 @@ func (m *Manager) Start(agentOverride string) error {
 	}
 
 	// Build startup command
-	startupCmd, err := config.BuildAgentStartupCommandWithAgentOverride("planner", "planner", m.rig.Name, "", agentOverride)
+	startupCmd, err := config.BuildAgentStartupCommandWithAgentOverride("planner", "planner", m.rig.Name, "", "", agentOverride)
 	if err != nil {
 		return fmt.Errorf("building startup command: %w", err)
 	}
@@ -93,7 +92,6 @@ func (m *Manager) Start(agentOverride string) error {
 		Role:     "planner",
 		Rig:      m.rig.Name,
 		TownRoot: m.townRoot,
-		BeadsDir: beads.ResolveBeadsDir(m.townRoot),
 	})
 	for k, v := range envVars {
 		_ = t.SetEnvironment(sessionID, k, v)

@@ -84,7 +84,9 @@ type NamePool struct {
 
 	// InUse tracks which pool names are currently in use.
 	// Key is the name itself, value is true if in use.
-	InUse map[string]bool `json:"in_use"`
+	// ZFC: This is transient state derived from filesystem via Reconcile().
+	// Never persist - always discover from existing polecat directories.
+	InUse map[string]bool `json:"-"`
 
 	// OverflowNext is the next overflow sequence number.
 	// Starts at MaxSize+1 and increments.
@@ -101,7 +103,7 @@ type NamePool struct {
 func NewNamePool(rigPath, rigName string) *NamePool {
 	return &NamePool{
 		RigName:      rigName,
-		Theme:        DefaultTheme,
+		Theme:        ThemeForRig(rigName),
 		InUse:        make(map[string]bool),
 		OverflowNext: DefaultPoolSize + 1,
 		MaxSize:      DefaultPoolSize,
@@ -168,12 +170,12 @@ func (p *NamePool) Load() error {
 
 	// Note: Theme and CustomNames are NOT loaded from state file.
 	// They are configuration (from settings/config.json), not runtime state.
-	// The state file only persists InUse, OverflowNext, and MaxSize.
+	// The state file only persists OverflowNext and MaxSize.
+	//
+	// ZFC: InUse is NEVER loaded from disk - it's transient state derived
+	// from filesystem via Reconcile(). Always start with empty map.
+	p.InUse = make(map[string]bool)
 
-	p.InUse = loaded.InUse
-	if p.InUse == nil {
-		p.InUse = make(map[string]bool)
-	}
 	p.OverflowNext = loaded.OverflowNext
 	if p.OverflowNext < p.MaxSize+1 {
 		p.OverflowNext = p.MaxSize + 1
@@ -348,6 +350,21 @@ func ListThemes() []string {
 	}
 	sort.Strings(themes)
 	return themes
+}
+
+// ThemeForRig returns a deterministic theme for a rig based on its name.
+// This provides variety across rigs without requiring manual configuration.
+func ThemeForRig(rigName string) string {
+	themes := ListThemes()
+	if len(themes) == 0 {
+		return DefaultTheme
+	}
+	// Hash using prime multiplier for better distribution
+	var hash uint32
+	for _, b := range []byte(rigName) {
+		hash = hash*31 + uint32(b)
+	}
+	return themes[hash%uint32(len(themes))]
 }
 
 // GetThemeNames returns the names in a specific theme.

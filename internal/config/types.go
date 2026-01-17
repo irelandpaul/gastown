@@ -60,6 +60,11 @@ type TownSettings struct {
 	// UsageAutoSwitch configures automatic agent switching based on Claude usage.
 	// When Claude weekly usage exceeds a threshold, new spawns auto-switch to a fallback agent.
 	UsageAutoSwitch *UsageAutoSwitchConfig `json:"usage_auto_switch,omitempty"`
+
+	// AgentEmailDomain is the domain used for agent git identity emails.
+	// Agent addresses like "gastown/crew/jack" become "gastown.crew.jack@{domain}".
+	// Default: "gastown.local"
+	AgentEmailDomain string `json:"agent_email_domain,omitempty"`
 }
 
 // UsageAutoSwitchConfig configures automatic agent switching based on usage thresholds.
